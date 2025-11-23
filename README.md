@@ -1,42 +1,58 @@
-# Expression Pedal BLE MIDI
+# BLE-MIDI-Organ-Pedal-Controller
 
-This project converts an analog signal from a pedal/potentiometer into MIDI messages over BLE using the sketch in [main/main.ino](main/main.ino).
+Small BLE MIDI expression pedal project for ESP32-like boards. Reads an analog pedal, applies smoothing and adaptive calibration, maps the result to a MIDI CC value (0–127) and sends it over BLE using BLEMidi.
 
-Key points implemented in the code:
-- Analog read from the pin [`pedal_pin`](main/main.ino) (set to 34).
-- Simple smoothing (moving average) stored in [`filtered`](main/main.ino).
-- Conversion to a MIDI value 0–127 stored in [`midi_value`](main/main.ino).
-- Sends Control Change messages when the change exceeds a deadband, using CC 11. Main logic is in [`loop()`](main/main.ino); initialization is in [`setup()`](main/main.ino).
-- Previous state tracked in [`last_value`](main/main.ino) to reduce MIDI traffic.
+Current state
+- Working prototype inside `main/main.ino`.
+- Reads analog pin 34, smooths with a simple IIR-like filter, performs slow adaptive calibration (min/max), applies a curvature function, maps to MIDI 0–127 and sends Control Change messages over BLE.
+- Uses a blocking sampling loop with delay(SAMPLE_INTERVAL_MS). Plans to replace with non-blocking timing later.
+
+Key features implemented
+- Analog read and smoothing (SMOOTH_DIV).
+- Adaptive calibration of min/max values (cal_min, cal_max).
+- Non-linear response curve (organSwellCurve with gamma 0.45).
+- Deadband to reduce MIDI traffic (DEAD_BAND = 2).
+- Sends MIDI Control Change CC 11 on channel 0 via BLE.
+- Serial debug output at 115200 baud.
+- BLE device name: "Organ Pedal" (BLE_NAME in code).
+- BLEMidiServer debugging enabled in setup().
 
 Hardware
-- BLE-capable microcontroller (e.g., ESP32).
-- Pedal/expression connected as a voltage divider to analog pin 34 (0–3.3V).
-- Power and GND according to your board.
+- BLE-capable microcontroller (ESP32 recommended).
+- Expression pedal wired as a voltage divider to ADC pin (0–3.3V).
 
-Wiring (example)
-- Pedal output -> pin 34
+Example wiring
+- Pedal output -> GPIO34 (analog input)
 - Pedal GND -> GND
-- Pedal VCC -> 3.3V (never 5V if using ESP32 ADC)
+- Pedal VCC -> 3.3V
 
-Important code settings
-- Pedal pin: variable [`pedal_pin`](main/main.ino)
-- Serial baud for debug: 115200 (`Serial.begin(115200)` in [main/main.ino](main/main.ino))
-- BLE device name set when starting the server (string `"Basic MIDI Device"`).
-- MIDI messages are sent as Control Change with values calculated from [`filtered`](main/main.ino) to [`midi_value`](main/main.ino).
+Important code/configuration (see main/main.ino)
+- Pedal pin: SWELL_PEDAL_PIN = 34
+- ADC range assumed: 0–4095 (ADC_MAX = 4095)
+- MIDI CC: SWELL_MIDI_CC = 11
+- MIDI channel: SWELL_MIDI_CHANNEL = 0
+- BLE device name: BLE_NAME = "Organ Pedal"
+- Serial baud: 115200
+- Sample interval: SAMPLE_INTERVAL_MS = 5 (uses delay)
 
-Usage / Debug
-1. Open [main/main.ino](main/main.ino) in the Arduino IDE or PlatformIO.
-2. Adjust the pedal pin if needed (`[`pedal_pin`](main/main.ino)`).
-3. Compile and upload to your board.
-4. Open the Serial Monitor at 115200 baud to view debug values.
-5. Pair/connect the BLE device on the host (PC, smartphone) named "Basic MIDI Device".
+Usage
+1. Open `main/main.ino` in Arduino IDE or PlatformIO.
+2. Verify pin wiring and constants if your board differs.
+3. Compile and upload to the board.
+4. Open Serial Monitor at 115200 for debug output.
+5. Pair and connect the BLE MIDI device (named "Organ Pedal") from your host (PC/mobile) and route CC 11 as desired.
 
-Notes
-- The sketch applies simple smoothing and a deadband to avoid excessive messages.
-- Adjust the pedal voltage divider to ensure ADC readings stay within the ADC range (0–3.3V).
-- If using a different board, verify analog pin mapping and ADC resolution (the code assumes 0–4095).
+Notes & future improvements
+- Current loop uses delay(); replace with millis() for concurrent tasks and lower latency.
+- Consider rounding and constrain when converting floats to uint8_t for MIDI values.
+- Calibrations use asymmetric update rates; you may tune the adaptation constants.
+- Add configurable BLE device name and CC/channel via EEPROM or settings UI.
+- Add persistent calibration storage if desired.
 
-Main file
-- Source: [main/main.ino](main/main.ino)
-- Main symbols: [`setup()`](main/main.ino), [`loop()`](main/main.ino), [`pedal_pin`](main/main.ino), [`filtered`](main/main.ino), [`midi_value`](main/main.ino), [`last_value`](main/main.ino)
+Repository layout
+- main/main.ino — sketch containing implementation
+- README.md — this file
+- .gitignore — local backup exclusions
+
+License
+- No license file included; add one if you plan to publish.
