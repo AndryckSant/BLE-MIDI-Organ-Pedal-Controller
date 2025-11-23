@@ -663,6 +663,9 @@
   (junction (at 116.84 115.57) (diameter 0) (color 0 0 0 0)
     (uuid 80bafb02-e947-4952-aee6-47e730c73381)
   )
+  (junction (at 167.64 106.68) (diameter 0) (color 0 0 0 0)
+    (uuid 85c8a212-7d2d-4937-b09c-80d2d801864f)
+  )
 
   (wire (pts (xy 167.64 119.38) (xy 167.64 106.68))
     (stroke (width 0) (type default))
@@ -780,6 +783,32 @@
       (project "organ_pedal_board"
         (path "/2fa41924-6213-48e9-b230-05fde6975ac3"
           (reference "#PWR02") (unit 1)
+        )
+      )
+    )
+  )
+
+  (symbol (lib_id "Device:R") (at 171.45 106.68 90) (unit 1)
+    (in_bom yes) (on_board yes) (dnp no) (fields_autoplaced)
+    (uuid 3ff8fffe-f0bf-41f4-8a65-861a9f052f07)
+    (property "Reference" "R2" (at 171.45 100.33 90)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Value" "100R" (at 171.45 102.87 90)
+      (effects (font (size 1.27 1.27)))
+    )
+    (property "Footprint" "" (at 171.45 108.458 90)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (property "Datasheet" "~" (at 171.45 106.68 0)
+      (effects (font (size 1.27 1.27)) hide)
+    )
+    (pin "2" (uuid ba13c5dc-0eeb-4d57-87aa-d23520f92a6f))
+    (pin "1" (uuid 20c9b91a-402a-4efd-8fbe-6d2c12f3b27d))
+    (instances
+      (project "organ_pedal_board"
+        (path "/2fa41924-6213-48e9-b230-05fde6975ac3"
+          (reference "R2") (unit 1)
         )
       )
     )
