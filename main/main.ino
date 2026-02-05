@@ -1,34 +1,59 @@
 #include <BLEMidi.h>
 #include <Arduino.h>
 
-
+// ===== HARDWARE CONFIGURATION =====
 const int SWELL_PEDAL_PIN = 34;
+const int LED_STATUS_PIN = 2;  // LED embutido no ESP32
 const uint16_t ADC_MAX = 4095;
 
+// ===== MIDI CONFIGURATION =====
 const uint8_t SWELL_MIDI_CC = 11;
 const uint8_t SWELL_MIDI_CHANNEL = 0;
 
+// ===== BLE CONFIGURATION =====
 constexpr char BLE_NAME[] = "Organ Pedal";
 
+// ===== FILTER PARAMETERS =====
 constexpr uint8_t DEAD_BAND = 2;
 constexpr uint8_t SMOOTH_DIV = 12;
 constexpr unsigned long SAMPLE_INTERVAL_MS = 5;
+constexpr float CALIBRATION_RATE = 0.001f;  // Taxa de adaptação da calibração
 
+// ===== STATE VARIABLES =====
 uint8_t midi_value = 0;
-bool isConnected = false;
-int last_value = -1; 
+volatile bool isConnected = false;
+uint8_t last_value = 255;  // Valor impossível para forçar primeiro envio
 int filtered = 0;
+unsigned long lastSampleTime = 0;
 
+// ===== CALIBRATION =====
 float cal_min = ADC_MAX;
 float cal_max = 0.0f;
+bool calibrationInitialized = false;
 
-float organSwellCurve(float x){
+// ===== CALLBACKS BLE =====
+void onConnected() {
+  isConnected = true;
+  digitalWrite(LED_STATUS_PIN, HIGH);
+  Serial.println("BLE Client connected!");
+}
+
+void onDisconnected() {
+  isConnected = false;
+  digitalWrite(LED_STATUS_PIN, LOW);
+  Serial.println("BLE Client disconnected.");
+}
+
+// ===== PROCESSING FUNCTIONS =====
+float organSwellCurve(float x) {
   const float gamma = 0.45f;
   return powf(x, gamma);
 }
 
-void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value){
-  BLEMidiServer.controlChange(channel, cc, value);
+void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
+  if (isConnected) {
+    BLEMidiServer.controlChange(channel, cc, value);
+  }
 }
 
 int readAndFilterSwellPedal(){
@@ -37,43 +62,82 @@ int readAndFilterSwellPedal(){
   return filtered;
 }
 
-void updateCalibration(int value){
-  if(value < cal_min) cal_min = cal_min * 0.99f + value * 0.01f;
-  if(value > cal_max) cal_max = cal_max * 0.99f + value * 0.01f;
+void updateCalibration(int value) {
+  if (!calibrationInitialized) {
+    cal_min = value;
+    cal_max = value;
+    calibrationInitialized = true;
+    return;
+  }
+  
+  if (value < cal_min) {
+    cal_min = cal_min * 0.9f + value * 0.1f; 
+  } else {
+    cal_min = cal_min * (1.0f - CALIBRATION_RATE) + value * CALIBRATION_RATE;  
+  }
+  
+  if (value > cal_max) {
+    cal_max = cal_max * 0.9f + value * 0.1f; 
+  } else {
+    cal_max = cal_max * (1.0f - CALIBRATION_RATE) + value * CALIBRATION_RATE;  
+  }
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE MIDI Device");
   BLEMidiServer.begin(BLE_NAME);
-  Serial.println("waiting for connections...");
   BLEMidiServer.enableDebugging();
+  BLEMidiServer.setOnConnectCallback(onConnected);
+  BLEMidiServer.setOnDisconnectCallback(onDisconnected);
+  
+  // Inicialização do filtro com primeira leitura
   filtered = analogRead(SWELL_PEDAL_PIN);
-
+  
+  // Pisca LED para indicar que está pronto
+  for (int i = 0; i < 3; i++) {
+    digitalWrite(LED_STATUS_PIN, HIGH);
+    delay(250);
+    digitalWrite(LED_STATUS_PIN, LOW);
+    delay(250);
+  }
+  
+  Serial.println("waiting for connections...");
 }
 
 void loop() {
-  isConnected = BLEMidiServer.isConnected();
-  if(isConnected){
-    int SwellFilteredValue = readAndFilterSwellPedal();
-    updateCalibration(SwellFilteredValue);
+
+  unsigned long currentTime = millis();
+  if (currentTime - lastSampleTime < SAMPLE_INTERVAL_MS) {
+    return;
+  }
+  lastSampleTime = currentTime;
+  
+  
+  if (isConnected) {
+    int swellFilteredValue = readAndFilterSwellPedal();
+    updateCalibration(swellFilteredValue);
+    
     
     float span = cal_max - cal_min;
-    if(span < 10.0f) span = 10.0f;
+    if (span < 10.0f) span = 10.0f;  
+    
+    
+    float normalized = constrain((swellFilteredValue - cal_min) / span, 0.0f, 1.0f);
+    
+    
+    float curved = organSwellCurve(normalized);
+    
 
-    float x = (filtered - cal_min) / span;
-    if(x < 0.0f) x = 0.0f;
-    if(x > 1.0f) x = 1.0f;
-
-    float curved = organSwellCurve(x);
-
-    midi_value = (uint8_t)(curved*127.0f);
-
-    if(abs(midi_value - last_value) > DEAD_BAND){
-      Serial.println(midi_value);
+    midi_value = (uint8_t)(curved * 127.0f);
+    
+    if (abs((int)midi_value - (int)last_value) > DEAD_BAND) {
+      Serial.printf("MIDI CC%d: %d (raw: %d, cal: %.0f-%.0f)\n", 
+                    SWELL_MIDI_CC, midi_value, swellFilteredValue, cal_min, cal_max);
       sendControlChange(SWELL_MIDI_CHANNEL, SWELL_MIDI_CC, midi_value);
       last_value = midi_value;
     }
-    delay(SAMPLE_INTERVAL_MS);
   }
+  
+  
 }
