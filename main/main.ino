@@ -1,7 +1,11 @@
 #include <BLEMidi.h>
 #include <Arduino.h>
+#include <Adafruit_ADS1X15.h>
+
 
 // ===== HARDWARE CONFIGURATION =====
+Adafruit_ADS1X15 ads;
+
 const int SWELL_PEDAL_PIN = 34;
 const int LED_STATUS_PIN = 2;  // LED embutido no ESP32
 const uint16_t ADC_MAX = 4095;
@@ -32,13 +36,14 @@ float cal_max = 0.0f;
 bool calibrationInitialized = false;
 
 // ===== CALLBACKS BLE =====
-void onConnected() {
+// Ajuste: callbacks sem parâmetros (compatível com BLEMidiServer.setOnConnectCallback)
+void onConnect() {
   isConnected = true;
   digitalWrite(LED_STATUS_PIN, HIGH);
   Serial.println("BLE Client connected!");
 }
 
-void onDisconnected() {
+void onDisconnect() {
   isConnected = false;
   digitalWrite(LED_STATUS_PIN, LOW);
   Serial.println("BLE Client disconnected.");
@@ -88,9 +93,17 @@ void setup() {
   Serial.println("Starting BLE MIDI Device");
   BLEMidiServer.begin(BLE_NAME);
   BLEMidiServer.enableDebugging();
-  BLEMidiServer.setOnConnectCallback(onConnected);
-  BLEMidiServer.setOnDisconnectCallback(onDisconnected);
+  BLEMidiServer.setOnConnectCallback(onConnect);
+  BLEMidiServer.setOnDisconnectCallback(onDisconnect);
   
+  // Configurações do hardware
+  pinMode(LED_STATUS_PIN, OUTPUT);
+  digitalWrite(LED_STATUS_PIN, LOW);
+
+  // Configura ADC do ESP32
+  analogSetPinAttenuation(SWELL_PEDAL_PIN, ADC_11db);
+  analogReadResolution(12);
+
   // Inicialização do filtro com primeira leitura
   filtered = analogRead(SWELL_PEDAL_PIN);
   
@@ -109,6 +122,7 @@ void loop() {
 
   unsigned long currentTime = millis();
   if (currentTime - lastSampleTime < SAMPLE_INTERVAL_MS) {
+    delay(1); // permite tarefas do sistema/BLE
     return;
   }
   lastSampleTime = currentTime;
