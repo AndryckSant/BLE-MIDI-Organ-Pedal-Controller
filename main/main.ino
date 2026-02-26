@@ -2,7 +2,16 @@
 #include <Arduino.h>
 #include <Adafruit_ADS1X15.h>
 #include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
+
+// ===== OLED =====
+#define SCREEN_W  128
+#define SCREEN_H  64
+#define OLED_ADDR 0x3C
+Adafruit_SSD1306 oled(SCREEN_W, SCREEN_H, &Wire, -1);
+SemaphoreHandle_t i2cMutex;
 
 // ===== HARDWARE CONFIGURATION =====
 Adafruit_ADS1115 ads;
@@ -68,7 +77,11 @@ void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
 }
 
 int readAndFilterSwellPedal(){
-  int raw = ads.readADC_SingleEnded(0);
+  int raw = 0;
+  if (xSemaphoreTake(i2cMutex, pdMS_TO_TICKS(20))) {
+    raw = ads.readADC_SingleEnded(0);
+    xSemaphoreGive(i2cMutex);
+  }
   filtered = filtered + (raw - filtered) / SMOOTH_DIV;
   return filtered;
 }
@@ -94,9 +107,57 @@ void updateCalibration(int value) {
   }
 }
 
+// ===== CORE 0: OLED STATUS =====
+void taskOLED(void* param) {
+  // Inicializa OLED
+  if (xSemaphoreTake(i2cMutex, portMAX_DELAY)) {
+    oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
+    oled.clearDisplay();
+    oled.display();
+    xSemaphoreGive(i2cMutex);
+  }
+
+  for (;;) {
+    if (xSemaphoreTake(i2cMutex, pdMS_TO_TICKS(30))) {
+      oled.clearDisplay();
+      oled.setTextColor(SSD1306_WHITE);
+      oled.setTextSize(1);
+
+      // Faixa amarela (Y 0-15): cabeçalho
+      oled.setCursor(0, 4);
+      oled.print(BLE_NAME);
+
+      // Faixa azul (Y 16+): conteúdo
+      oled.setCursor(0, 18);
+      oled.print("BLE: ");
+      oled.print(isConnected ? "Conectado" : "Aguardando...");
+
+      oled.setCursor(0, 30);
+      oled.printf("CC%d: %d", SWELL_MIDI_CC, midi_value);
+
+      oled.setCursor(0, 42);
+      oled.printf("Cal: %.0f - %.0f", cal_min, cal_max);
+
+      // Barra de expressão
+      oled.drawRect(0, 54, 128, 10, SSD1306_WHITE);
+      int barW = map(midi_value, 0, 127, 0, 126);
+      oled.fillRect(1, 55, barW, 8, SSD1306_WHITE);
+
+      oled.display();
+      xSemaphoreGive(i2cMutex);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(100)); // ~10 FPS
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE MIDI Device");
+
+  // Mutex I2C (compartilhado OLED + ADS1115)
+  i2cMutex = xSemaphoreCreateMutex();
+
   BLEMidiServer.begin(BLE_NAME);
   BLEMidiServer.enableDebugging();
   BLEMidiServer.setOnConnectCallback(onConnect);
@@ -131,6 +192,9 @@ void setup() {
     digitalWrite(LED_STATUS_PIN, LOW);
     delay(250);
   }
+
+  // Lança task OLED no Core 0
+  xTaskCreatePinnedToCore(taskOLED, "OLED", 4096, NULL, 1, NULL, 0);
   
   Serial.println("waiting for connections...");
 }
