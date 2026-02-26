@@ -1,14 +1,20 @@
 #include <BLEMidi.h>
 #include <Arduino.h>
 #include <Adafruit_ADS1X15.h>
+#include <Wire.h>
 
 
 // ===== HARDWARE CONFIGURATION =====
-Adafruit_ADS1X15 ads;
+Adafruit_ADS1115 ads;
+const int pedal1_signal = 4;
+const int pedal2_signal = 15;
+const int i2c_sda = 21;
+const int i2c_scl = 22;
+const int i2c_dready = 23;
 
 const int SWELL_PEDAL_PIN = 34;
 const int LED_STATUS_PIN = 2;  // LED embutido no ESP32
-const uint16_t ADC_MAX = 4095;
+const uint16_t ADC_MAX = 65535;
 
 // ===== MIDI CONFIGURATION =====
 const uint8_t SWELL_MIDI_CC = 11;
@@ -62,7 +68,7 @@ void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
 }
 
 int readAndFilterSwellPedal(){
-  int raw = analogRead(SWELL_PEDAL_PIN);
+  int raw = ads.readADC_SingleEnded(0);
   filtered = filtered + (raw - filtered) / SMOOTH_DIV;
   return filtered;
 }
@@ -100,12 +106,23 @@ void setup() {
   pinMode(LED_STATUS_PIN, OUTPUT);
   digitalWrite(LED_STATUS_PIN, LOW);
 
-  // Configura ADC do ESP32
-  analogSetPinAttenuation(SWELL_PEDAL_PIN, ADC_11db);
-  analogReadResolution(12);
+  Wire.begin(i2c_sda, i2c_scl);
+  delay(100);
+  // Configura ADC
+  ads.setGain(GAIN_ONE);
 
-  // Inicialização do filtro com primeira leitura
-  filtered = analogRead(SWELL_PEDAL_PIN);
+  //Diagnóstico de localização de dispositivos...
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf("Found device at 0x%02X\n", addr);
+    }
+  }
+  if(!ads.begin()){
+    Serial.println("ADS1115 not found!");
+    while (1);
+  }
+  delay(100);
   
   // Pisca LED para indicar que está pronto
   for (int i = 0; i < 3; i++) {
