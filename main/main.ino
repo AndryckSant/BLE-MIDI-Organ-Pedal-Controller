@@ -8,7 +8,7 @@
 
 // ===== OLED =====
 #define SCREEN_W  128
-#define SCREEN_H  64
+#define SCREEN_H  32
 #define OLED_ADDR 0x3C
 Adafruit_SSD1306 oled(SCREEN_W, SCREEN_H, &Wire, -1);
 SemaphoreHandle_t i2cMutex;
@@ -27,7 +27,7 @@ const uint16_t ADC_MAX = 65535;
 
 // ===== MIDI CONFIGURATION =====
 const uint8_t SWELL_MIDI_CC = 11;
-const uint8_t SWELL_MIDI_CHANNEL = 0;
+const uint8_t SWELL_MIDI_CHANNEL = 1;
 
 // ===== BLE CONFIGURATION =====
 constexpr char BLE_NAME[] = "Organ Pedal";
