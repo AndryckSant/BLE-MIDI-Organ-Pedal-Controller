@@ -11,23 +11,24 @@
 #define SCREEN_H  32
 #define OLED_ADDR 0x3C
 Adafruit_SSD1306 oled(SCREEN_W, SCREEN_H, &Wire, -1);
-SemaphoreHandle_t i2cMutex;
+// running bare-metal (no RTOS mutex)
 
 // ===== HARDWARE CONFIGURATION =====
 Adafruit_ADS1115 ads;
-const int pedal1_signal = 4;
-const int pedal2_signal = 15;
 const int i2c_sda = 21;
 const int i2c_scl = 22;
 const int i2c_dready = 23;
 
-const int SWELL_PEDAL_PIN = 34;
 const int LED_STATUS_PIN = 2;  // LED embutido no ESP32
-const uint16_t ADC_MAX = 65535;
+const uint16_t ADC_MAX = 32767; // ADS1115 single-ended maximum
 
 // ===== MIDI CONFIGURATION =====
 const uint8_t SWELL_MIDI_CC = 11;
 const uint8_t SWELL_MIDI_CHANNEL = 1;
+// Pedal 2 (conectado em A1 do ADS1115)
+const uint8_t PEDAL2_ADS_CHANNEL = 1;
+const uint8_t PEDAL2_MIDI_CC = 11;
+const uint8_t PEDAL2_MIDI_CHANNEL =1;
 
 // ===== BLE CONFIGURATION =====
 constexpr char BLE_NAME[] = "Organ Pedal";
@@ -39,16 +40,19 @@ constexpr unsigned long SAMPLE_INTERVAL_MS = 5;
 constexpr float CALIBRATION_RATE = 0.001f;  // Taxa de adaptação da calibração
 
 // ===== STATE VARIABLES =====
-uint8_t midi_value = 0;
 volatile bool isConnected = false;
-uint8_t last_value = 255;  // Valor impossível para forçar primeiro envio
-int filtered = 0;
 unsigned long lastSampleTime = 0;
 
-// ===== CALIBRATION =====
-float cal_min = ADC_MAX;
-float cal_max = 0.0f;
-bool calibrationInitialized = false;
+// Pedal 2 state (ADS channel A1)
+int filtered2 = 0;
+uint8_t midi_value2 = 0;
+uint8_t last_value2 = 255; // impossible initial value to force first send
+
+// Pedal 2 calibration
+float cal_min2 = ADC_MAX;
+float cal_max2 = 0.0f;
+bool calibrationInitialized2 = false;
+constexpr float CALIBRATION_MARGIN = 0.02f; // 2% margin when mapping
 
 // ===== CALLBACKS BLE =====
 // Ajuste: callbacks sem parâmetros (compatível com BLEMidiServer.setOnConnectCallback)
@@ -56,12 +60,17 @@ void onConnect() {
   isConnected = true;
   digitalWrite(LED_STATUS_PIN, HIGH);
   Serial.println("BLE Client connected!");
+  // Envia valores atuais para sincronizar o cliente
+  //sendControlChange(SWELL_MIDI_CHANNEL, SWELL_MIDI_CC, midi_value);
+  sendControlChange(PEDAL2_MIDI_CHANNEL, PEDAL2_MIDI_CC, midi_value2);
+  oledShowStatus(true, midi_value2);
 }
 
 void onDisconnect() {
   isConnected = false;
   digitalWrite(LED_STATUS_PIN, LOW);
   Serial.println("BLE Client disconnected.");
+  oledShowStatus(false, 0);
 }
 
 // ===== PROCESSING FUNCTIONS =====
@@ -76,87 +85,73 @@ void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
   }
 }
 
-int readAndFilterSwellPedal(){
-  int raw = 0;
-  if (xSemaphoreTake(i2cMutex, pdMS_TO_TICKS(20))) {
-    raw = ads.readADC_SingleEnded(0);
-    xSemaphoreGive(i2cMutex);
-  }
-  filtered = filtered + (raw - filtered) / SMOOTH_DIV;
-  return filtered;
+// Read+filter a pedal on given ADS channel (bare-metal, no RTOS mutex)
+int readAndFilterPedal(uint8_t adsChannel, int &filteredState){
+  int raw = ads.readADC_SingleEnded(adsChannel);
+  filteredState = filteredState + (raw - filteredState) / SMOOTH_DIV;
+  return filteredState;
 }
 
-void updateCalibration(int value) {
-  if (!calibrationInitialized) {
-    cal_min = value;
-    cal_max = value;
-    calibrationInitialized = true;
+// Improved calibration updater for pedal 2 with spike/disconnect protection
+void updateCalibrationFor(int value, float &cmin, float &cmax, bool &initialized) {
+  const float topThreshold = ADC_MAX * 0.98f; // readings above this likely indicate open/floating to VCC
+  const float lowThreshold = ADC_MAX * 0.02f;
+
+  if (!initialized) {
+    cmin = value;
+    cmax = value;
+    initialized = true;
     return;
   }
-  
-  if (value < cal_min) {
-    cal_min = cal_min * 0.9f + value * 0.1f; 
-  } else {
-    cal_min = cal_min * (1.0f - CALIBRATION_RATE) + value * CALIBRATION_RATE;  
+
+  // If reading is near top/full-scale, treat cautiously: update max slowly, don't lower min
+  if (value >= topThreshold) {
+    cmax = cmax * 0.98f + value * 0.02f; // very slow move towards top
+    return;
   }
-  
-  if (value > cal_max) {
-    cal_max = cal_max * 0.9f + value * 0.1f; 
+  // If reading is near very low, update min cautiously
+  if (value <= lowThreshold) {
+    cmin = cmin * 0.98f + value * 0.02f;
+    return;
+  }
+
+  // Normal adaptive update with small smoothing
+  if (value < cmin) {
+    cmin = cmin * 0.9f + value * 0.1f;
   } else {
-    cal_max = cal_max * (1.0f - CALIBRATION_RATE) + value * CALIBRATION_RATE;  
+    cmin = cmin * (1.0f - CALIBRATION_RATE) + value * CALIBRATION_RATE;
+  }
+  if (value > cmax) {
+    cmax = cmax * 0.9f + value * 0.1f;
+  } else {
+    cmax = cmax * (1.0f - CALIBRATION_RATE) + value * CALIBRATION_RATE;
   }
 }
 
-// ===== CORE 0: OLED STATUS =====
-void taskOLED(void* param) {
-  // Inicializa OLED
-  if (xSemaphoreTake(i2cMutex, portMAX_DELAY)) {
-    oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
-    oled.clearDisplay();
-    oled.display();
-    xSemaphoreGive(i2cMutex);
+// Simple OLED update (bare-metal). Shows name and connection state; when connected shows pedal2 CC
+void oledShowStatus(bool connected, uint8_t ccValue) {
+  oled.clearDisplay();
+  oled.setTextColor(SSD1306_WHITE);
+  oled.setTextSize(1);
+
+  oled.setCursor(0, 0);
+  oled.print(BLE_NAME);
+
+  oled.setCursor(0, 12);
+  oled.print("BLE: ");
+  oled.print(connected ? "Conectado" : "Aguardando...");
+
+  if (connected) {
+    oled.setCursor(0, 24);
+    oled.printf("CC%d: %d", PEDAL2_MIDI_CC, ccValue);
   }
 
-  for (;;) {
-    if (xSemaphoreTake(i2cMutex, pdMS_TO_TICKS(30))) {
-      oled.clearDisplay();
-      oled.setTextColor(SSD1306_WHITE);
-      oled.setTextSize(1);
-
-      // Faixa amarela (Y 0-15): cabeçalho
-      oled.setCursor(0, 4);
-      oled.print(BLE_NAME);
-
-      // Faixa azul (Y 16+): conteúdo
-      oled.setCursor(0, 18);
-      oled.print("BLE: ");
-      oled.print(isConnected ? "Conectado" : "Aguardando...");
-
-      oled.setCursor(0, 30);
-      oled.printf("CC%d: %d", SWELL_MIDI_CC, midi_value);
-
-      oled.setCursor(0, 42);
-      oled.printf("Cal: %.0f - %.0f", cal_min, cal_max);
-
-      // Barra de expressão
-      oled.drawRect(0, 54, 128, 10, SSD1306_WHITE);
-      int barW = map(midi_value, 0, 127, 0, 126);
-      oled.fillRect(1, 55, barW, 8, SSD1306_WHITE);
-
-      oled.display();
-      xSemaphoreGive(i2cMutex);
-    }
-
-    vTaskDelay(pdMS_TO_TICKS(100)); // ~10 FPS
-  }
+  oled.display();
 }
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting BLE MIDI Device");
-
-  // Mutex I2C (compartilhado OLED + ADS1115)
-  i2cMutex = xSemaphoreCreateMutex();
 
   BLEMidiServer.begin(BLE_NAME);
   BLEMidiServer.enableDebugging();
@@ -193,8 +188,10 @@ void setup() {
     delay(250);
   }
 
-  // Lança task OLED no Core 0
-  xTaskCreatePinnedToCore(taskOLED, "OLED", 4096, NULL, 1, NULL, 0);
+  // Inicializa OLED e mostra estado inicial
+  oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
+  oled.clearDisplay();
+  oledShowStatus(false, 0);
   
   Serial.println("waiting for connections...");
 }
@@ -210,27 +207,29 @@ void loop() {
   
   
   if (isConnected) {
-    int swellFilteredValue = readAndFilterSwellPedal();
-    updateCalibration(swellFilteredValue);
-    
-    
-    float span = cal_max - cal_min;
-    if (span < 10.0f) span = 10.0f;  
-    
-    
-    float normalized = constrain((swellFilteredValue - cal_min) / span, 0.0f, 1.0f);
-    
-    
-    float curved = organSwellCurve(normalized);
-    
+    // Read pedal 2 (ADS A1)
+    int pedal2FilteredValue = readAndFilterPedal(PEDAL2_ADS_CHANNEL, filtered2);
+    updateCalibrationFor(pedal2FilteredValue, cal_min2, cal_max2, calibrationInitialized2);
 
-    midi_value = (uint8_t)(curved * 127.0f);
-    
-    if (abs((int)midi_value - (int)last_value) > DEAD_BAND) {
-      Serial.printf("MIDI CC%d: %d (raw: %d, cal: %.0f-%.0f)\n", 
-                    SWELL_MIDI_CC, midi_value, swellFilteredValue, cal_min, cal_max);
-      sendControlChange(SWELL_MIDI_CHANNEL, SWELL_MIDI_CC, midi_value);
-      last_value = midi_value;
+    float span2 = cal_max2 - cal_min2;
+    if (span2 < 10.0f) span2 = 10.0f;
+
+    // Apply a small margin beyond observed extrema to allow headroom
+    float eff_min = cal_min2 - span2 * CALIBRATION_MARGIN;
+    float eff_max = cal_max2 + span2 * CALIBRATION_MARGIN;
+    if (eff_min < 0.0f) eff_min = 0.0f;
+    if (eff_max > (float)ADC_MAX) eff_max = (float)ADC_MAX;
+
+    float normalized2 = constrain((pedal2FilteredValue - eff_min) / (eff_max - eff_min), 0.0f, 1.0f);
+    float curved2 = organSwellCurve(normalized2);
+    midi_value2 = (uint8_t)(curved2 * 127.0f);
+
+    if (abs((int)midi_value2 - (int)last_value2) > DEAD_BAND) {
+      Serial.printf("MIDI CC%d: %d (raw: %d, cal: %.0f-%.0f)\n",
+                    PEDAL2_MIDI_CC, midi_value2, pedal2FilteredValue, cal_min2, cal_max2);
+      sendControlChange(PEDAL2_MIDI_CHANNEL, PEDAL2_MIDI_CC, midi_value2);
+      last_value2 = midi_value2;
+      oledShowStatus(true, midi_value2);
     }
   }
   
