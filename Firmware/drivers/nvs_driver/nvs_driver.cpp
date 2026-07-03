@@ -7,15 +7,15 @@ namespace {
 constexpr char kNamespace[] = "ble_midi";
 
 Preferences g_preferences;
-bool g_initialized = false;
+bool g_nvs_initialized = false;
 
 bool ensure_open() {
-	if (g_initialized) {
+	if (g_nvs_initialized) {
 		return true;
 	}
 
-	g_initialized = g_preferences.begin(kNamespace, false);
-	return g_initialized;
+	g_nvs_initialized = g_preferences.begin(kNamespace, false);
+	return g_nvs_initialized;
 }
 
 } // namespace

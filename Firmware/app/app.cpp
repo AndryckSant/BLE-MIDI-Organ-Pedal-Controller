@@ -24,17 +24,15 @@ constexpr int OLED_ADDR = 0x3C;
 constexpr int LED_STATUS_PIN = 2;
 constexpr int I2C_SDA = 21;
 constexpr int I2C_SCL = 22;
-constexpr uint8_t PEDAL2_ADS_CHANNEL = 1;
-constexpr uint8_t PEDAL2_MIDI_CC = 11;
-constexpr uint8_t PEDAL2_MIDI_CHANNEL = 1;
 constexpr unsigned long SAMPLE_INTERVAL_MS = 5;
 
 Adafruit_SSD1306 oled(SCREEN_W, SCREEN_H, &Wire, -1);
-PedalModel pedal2;
+PedalModel pedal1;
 unsigned long lastSampleTime = 0;
 FsmContext fsmContext;
 FsmState lastState = FsmState::Boot;
 StateActions stateActions{};
+uint8_t displayMdiCc = 11;
 
 void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
     if (fsm_get_state(fsmContext) == FsmState::ReadAndSend || fsm_get_state(fsmContext) == FsmState::BleConnected) {
@@ -60,7 +58,7 @@ void showStatus(bool connected, uint8_t ccValue) {
 
     if (connected) {
         oled.setCursor(0, 24);
-        oled.printf("CC%d: %d", PEDAL2_MIDI_CC, ccValue);
+        oled.printf("P1 CC%d: %d", displayMdiCc, ccValue);
     }
 
     oled.display();
@@ -117,7 +115,16 @@ void app_init() {
 
     config_service_init();
 
-    pedal_service_init(pedal2, PEDAL2_ADS_CHANNEL, PEDAL2_MIDI_CHANNEL, PEDAL2_MIDI_CC);
+    const SystemConfig &config = config_service_get();
+    const PedalModel &pedalConfig = config.pedals[0];
+
+    pedal_service_init(pedal1, pedalConfig.adc_channel, pedalConfig.midi_channel, pedalConfig.midi_cc);
+    pedal1.enabled = pedalConfig.enabled;
+    pedal1.calibration_min = pedalConfig.calibration_min;
+    pedal1.calibration_max = pedalConfig.calibration_max;
+    pedal1.calibration_initialized = pedalConfig.calibration_initialized;
+    displayMdiCc = pedal1.midi_cc;
+
     fsm_init(fsmContext);
     lastState = fsm_get_state(fsmContext);
 
@@ -148,7 +155,7 @@ void app_run() {
         if (currentState == FsmState::BleDisconnected) {
             ble_disconnected_enter(stateActions);
         } else if (currentState == FsmState::BleConnected || currentState == FsmState::ReadAndSend) {
-            ble_connected_enter(stateActions, pedal2.midi_channel, pedal2.midi_cc, pedal_service_get_midi_value(pedal2));
+            ble_connected_enter(stateActions, pedal1.midi_channel, pedal1.midi_cc, pedal_service_get_midi_value(pedal1));
         } else if (currentState == FsmState::Config) {
             config_mode_enter();
         }
@@ -174,13 +181,13 @@ void app_run() {
     }
     lastSampleTime = currentTime;
 
-    int pedal2RawValue = adc_read(PEDAL2_ADS_CHANNEL);
-    if (pedal_service_process(pedal2, pedal2RawValue, true, sendControlChange)) {
+    int pedal1RawValue = adc_read(pedal1.adc_channel);
+    if (pedal_service_process(pedal1, pedal1RawValue, true, sendControlChange)) {
         Serial.printf("MIDI CC%d: %d (raw: %d, filtered: %d)\n",
-                      pedal2.midi_cc,
-                      pedal_service_get_midi_value(pedal2),
-                      pedal2.raw_value,
-                      pedal2.filtered_value);
-        showStatus(true, pedal_service_get_midi_value(pedal2));
+                      pedal1.midi_cc,
+                      pedal_service_get_midi_value(pedal1),
+                      pedal1.raw_value,
+                      pedal1.filtered_value);
+        showStatus(true, pedal_service_get_midi_value(pedal1));
     }
 }

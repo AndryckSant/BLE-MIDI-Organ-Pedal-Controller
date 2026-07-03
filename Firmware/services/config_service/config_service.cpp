@@ -17,7 +17,7 @@ struct ConfigBlob {
 };
 
 SystemConfig g_config;
-bool g_initialized = false;
+bool g_config_initialized = false;
 
 void set_factory_defaults(SystemConfig &config) {
 	for (uint8_t index = 0; index < 2; ++index) {
@@ -72,18 +72,18 @@ bool save_to_nvs(const SystemConfig &config) {
 } // namespace
 
 void config_service_init() {
-	if (g_initialized) {
+	if (g_config_initialized) {
 		return;
 	}
 
 	nvs_init();
 	set_factory_defaults(g_config);
 	config_service_load();
-	g_initialized = true;
+	g_config_initialized = true;
 }
 
 SystemConfig &config_service_get_mutable() {
-	if (!g_initialized) {
+	if (!g_config_initialized) {
 		config_service_init();
 	}
 
@@ -91,7 +91,7 @@ SystemConfig &config_service_get_mutable() {
 }
 
 const SystemConfig &config_service_get() {
-	if (!g_initialized) {
+	if (!g_config_initialized) {
 		config_service_init();
 	}
 
