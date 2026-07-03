@@ -8,7 +8,8 @@ Current state
 - ADS1115 access is isolated in `Firmware/drivers/adc/ads1115.cpp`.
 - Pedal processing logic is isolated in `Firmware/services/input/pedal/pedal_service.cpp`.
 - `Firmware/models/pedal_model.h` stores pedal state and MIDI output data.
-- The FSM layer is still scaffolding and will be introduced gradually.
+- The FSM now has a minimal event queue and state dispatch path.
+- The `config` state brings up a WiFi AP and web UI to edit pedal and button parameters.
 
 Key features implemented
 - ADS1115 reading behind a driver API.
@@ -17,6 +18,9 @@ Key features implemented
 - BLE MIDI control change output guarded by connection state.
 - OLED status display handled by the application layer.
 - Arduino IDE compatibility preserved through sketch-local wrapper translation units.
+- WiFi AP configuration portal with save and factory reset actions.
+- Editable MIDI parameters for 2 pedals and 8 buttons.
+- Pedal calibration fields exposed in the configuration UI.
 
 Hardware
 - BLE-capable microcontroller (ESP32 recommended).
@@ -48,14 +52,15 @@ Usage
 4. Pair and connect the BLE MIDI device (named `BLE MIDI Controller`) from your host and route CC 11 as desired.
 
 Notes & future improvements
-- The FSM layer should take ownership of higher-level flow in a later sprint.
-- Consider moving BLE, display and event coordination out of `app.cpp` once the FSM is introduced.
-- Calibration constants and MIDI routing are still hardcoded for the current prototype.
+- The FSM should keep taking ownership of state transitions and runtime decisions.
+- The configuration portal currently uses serial `c`/`C` as a temporary entry trigger from connected/runtime states; a dedicated input path should replace that later.
+- Consider moving BLE, display and event coordination further out of `app.cpp` once the FSM grows.
+- Calibration constants and MIDI routing are now configurable, but validation and richer UX can still improve.
 
 Repository layout
 - Firmware/main/main.ino — thin sketch entry point
 - Firmware/app/ — application orchestration
-- Firmware/core/ — future FSM, events and states
+- Firmware/core/ — FSM, events and states
 - Firmware/drivers/ — hardware access layers
 - Firmware/services/ — algorithmic services
 - Firmware/models/ — domain data structures

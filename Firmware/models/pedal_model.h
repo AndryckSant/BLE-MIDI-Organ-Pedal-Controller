@@ -1,9 +1,7 @@
 #ifndef PEDAL_MODEL_H
 #define PEDAL_MODEL_H
 
-#ifndef UINT8_MAX
-typedef unsigned char uint8_t;
-#endif
+#include <stdint.h>
 
 struct PedalModel {
     bool enabled;            // Whether the pedal is enabled

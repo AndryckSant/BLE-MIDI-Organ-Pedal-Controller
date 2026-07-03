@@ -6,7 +6,13 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include "../core/fsm/fsm.h"
+#include "../core/states/ble_connected.h"
+#include "../core/states/ble_disconnected.h"
+#include "../core/states/config.h"
+#include "../core/states/state_actions.h"
 #include "../drivers/adc/ads1115.h"
+#include "../services/config_service/config_service.h"
 #include "../services/input/pedal/pedal_service.h"
 
 namespace {
@@ -25,16 +31,22 @@ constexpr unsigned long SAMPLE_INTERVAL_MS = 5;
 
 Adafruit_SSD1306 oled(SCREEN_W, SCREEN_H, &Wire, -1);
 PedalModel pedal2;
-volatile bool isConnected = false;
 unsigned long lastSampleTime = 0;
+FsmContext fsmContext;
+FsmState lastState = FsmState::Boot;
+StateActions stateActions{};
 
 void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
-    if (isConnected) {
+    if (fsm_get_state(fsmContext) == FsmState::ReadAndSend || fsm_get_state(fsmContext) == FsmState::BleConnected) {
         BLEMidiServer.controlChange(channel, cc, value);
     }
 }
 
-void oledShowStatus(bool connected, uint8_t ccValue) {
+void setLed(bool on) {
+    digitalWrite(LED_STATUS_PIN, on ? HIGH : LOW);
+}
+
+void showStatus(bool connected, uint8_t ccValue) {
     oled.clearDisplay();
     oled.setTextColor(SSD1306_WHITE);
     oled.setTextSize(1);
@@ -54,19 +66,30 @@ void oledShowStatus(bool connected, uint8_t ccValue) {
     oled.display();
 }
 
+void logMessage(const char *message) {
+    Serial.println(message);
+}
+
 void onConnect() {
-    isConnected = true;
-    digitalWrite(LED_STATUS_PIN, HIGH);
-    Serial.println("BLE Client connected!");
-    sendControlChange(pedal2.midi_channel, pedal2.midi_cc, pedal_service_get_midi_value(pedal2));
-    oledShowStatus(true, pedal_service_get_midi_value(pedal2));
+    fsm_post(fsmContext, FsmEvent::BleConnected);
+    fsm_post(fsmContext, FsmEvent::StartStream);
 }
 
 void onDisconnect() {
-    isConnected = false;
-    digitalWrite(LED_STATUS_PIN, LOW);
-    Serial.println("BLE Client disconnected.");
-    oledShowStatus(false, 0);
+    fsm_post(fsmContext, FsmEvent::StopStream);
+    fsm_post(fsmContext, FsmEvent::BleDisconnected);
+}
+
+void processSerialCommands() {
+    const FsmState currentState = fsm_get_state(fsmContext);
+    while (Serial.available() > 0) {
+        const int value = Serial.read();
+        if ((value == 'c' || value == 'C') && (currentState == FsmState::BleConnected || currentState == FsmState::ReadAndSend)) {
+            fsm_post(fsmContext, FsmEvent::EnterConfig);
+        } else if (value == 'x' || value == 'X') {
+            fsm_post(fsmContext, FsmEvent::ExitConfig);
+        }
+    }
 }
 
 } // namespace
@@ -80,6 +103,11 @@ void app_init() {
     BLEMidiServer.setOnConnectCallback(onConnect);
     BLEMidiServer.setOnDisconnectCallback(onDisconnect);
 
+    stateActions.set_led = setLed;
+    stateActions.show_status = showStatus;
+    stateActions.log_message = logMessage;
+    stateActions.send_control_change = sendControlChange;
+
     pinMode(LED_STATUS_PIN, OUTPUT);
     digitalWrite(LED_STATUS_PIN, LOW);
 
@@ -87,7 +115,11 @@ void app_init() {
     delay(100);
     adc_init();
 
+    config_service_init();
+
     pedal_service_init(pedal2, PEDAL2_ADS_CHANNEL, PEDAL2_MIDI_CHANNEL, PEDAL2_MIDI_CC);
+    fsm_init(fsmContext);
+    lastState = fsm_get_state(fsmContext);
 
     for (int i = 0; i < 3; i++) {
         digitalWrite(LED_STATUS_PIN, HIGH);
@@ -98,12 +130,43 @@ void app_init() {
 
     oled.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR);
     oled.clearDisplay();
-    oledShowStatus(false, 0);
+    showStatus(false, 0);
 
     Serial.println("waiting for connections...");
 }
 
 void app_run() {
+    processSerialCommands();
+    fsm_run(fsmContext);
+
+    const FsmState currentState = fsm_get_state(fsmContext);
+    if (currentState != lastState) {
+        if (lastState == FsmState::Config && currentState != FsmState::Config) {
+            config_mode_exit();
+        }
+
+        if (currentState == FsmState::BleDisconnected) {
+            ble_disconnected_enter(stateActions);
+        } else if (currentState == FsmState::BleConnected || currentState == FsmState::ReadAndSend) {
+            ble_connected_enter(stateActions, pedal2.midi_channel, pedal2.midi_cc, pedal_service_get_midi_value(pedal2));
+        } else if (currentState == FsmState::Config) {
+            config_mode_enter();
+        }
+        lastState = currentState;
+    }
+
+    if (currentState == FsmState::Config) {
+        config_mode_run();
+        if (config_mode_should_exit()) {
+            fsm_post(fsmContext, FsmEvent::ExitConfig);
+        }
+        return;
+    }
+
+    if (currentState != FsmState::ReadAndSend) {
+        return;
+    }
+
     unsigned long currentTime = millis();
     if (currentTime - lastSampleTime < SAMPLE_INTERVAL_MS) {
         delay(1);
@@ -112,14 +175,12 @@ void app_run() {
     lastSampleTime = currentTime;
 
     int pedal2RawValue = adc_read(PEDAL2_ADS_CHANNEL);
-    if (pedal_service_process(pedal2, pedal2RawValue, isConnected, sendControlChange)) {
+    if (pedal_service_process(pedal2, pedal2RawValue, true, sendControlChange)) {
         Serial.printf("MIDI CC%d: %d (raw: %d, filtered: %d)\n",
                       pedal2.midi_cc,
                       pedal_service_get_midi_value(pedal2),
                       pedal2.raw_value,
                       pedal2.filtered_value);
-        if (isConnected) {
-            oledShowStatus(true, pedal_service_get_midi_value(pedal2));
-        }
+        showStatus(true, pedal_service_get_midi_value(pedal2));
     }
 }
