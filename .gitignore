@@ -1,2 +1,4 @@
 organ_pedal_board-backups/
-.vscode/
+**/.vscode/
+Docs/*.pdf
+Docs/*.lock
