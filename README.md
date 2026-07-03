@@ -1,58 +1,65 @@
 # BLE-MIDI-Organ-Pedal-Controller
 
-Small BLE MIDI expression pedal project for ESP32-like boards. Reads an analog pedal, applies smoothing and adaptive calibration, maps the result to a MIDI CC value (0–127) and sends it over BLE using BLEMidi.
+Modular BLE MIDI firmware for ESP32-based expression pedals. The project is being organized around drivers, models, services, an application layer and a future FSM so the code stays maintainable as features grow.
 
 Current state
-- Working prototype inside `main/main.ino`.
-- Reads analog pin 34, smooths with a simple IIR-like filter, performs slow adaptive calibration (min/max), applies a curvature function, maps to MIDI 0–127 and sends Control Change messages over BLE.
-- Uses a blocking sampling loop with delay(SAMPLE_INTERVAL_MS). Plans to replace with non-blocking timing later.
+- The sketch entry point in `Firmware/main/main.ino` is now a thin wrapper that calls `app_init()` and `app_run()`.
+- Application orchestration lives in `Firmware/app/app.cpp`.
+- ADS1115 access is isolated in `Firmware/drivers/adc/ads1115.cpp`.
+- Pedal processing logic is isolated in `Firmware/services/input/pedal/pedal_service.cpp`.
+- `Firmware/models/pedal_model.h` stores pedal state and MIDI output data.
+- The FSM layer is still scaffolding and will be introduced gradually.
 
 Key features implemented
-- Analog read and smoothing (SMOOTH_DIV).
-- Adaptive calibration of min/max values (cal_min, cal_max).
-- Non-linear response curve (organSwellCurve with gamma 0.45).
-- Deadband to reduce MIDI traffic (DEAD_BAND = 2).
-- Sends MIDI Control Change CC 11 on channel 0 via BLE.
-- Serial debug output at 115200 baud.
-- BLE device name: "Organ Pedal" (BLE_NAME in code).
-- BLEMidiServer debugging enabled in setup().
+- ADS1115 reading behind a driver API.
+- Pedal smoothing, adaptive calibration and MIDI mapping in a service.
+- `PedalModel`-based state for the pedal slice.
+- BLE MIDI control change output guarded by connection state.
+- OLED status display handled by the application layer.
+- Arduino IDE compatibility preserved through sketch-local wrapper translation units.
 
 Hardware
 - BLE-capable microcontroller (ESP32 recommended).
-- Expression pedal wired as a voltage divider to ADC pin (0–3.3V).
+- Expression pedal wired to ADS1115 channel A1.
+- OLED SSD1306 on I2C.
+- ESP32 I2C pins currently configured as SDA 21 and SCL 22.
 
 Example wiring
-- Pedal output -> GPIO34 (analog input)
+- Pedal output -> ADS1115 A1
 - Pedal GND -> GND
 - Pedal VCC -> 3.3V
 
 Important code/configuration (see main/main.ino)
-- Pedal pin: SWELL_PEDAL_PIN = 34
-- ADC range assumed: 0–4095 (ADC_MAX = 4095)
-- MIDI CC: SWELL_MIDI_CC = 11
-- MIDI channel: SWELL_MIDI_CHANNEL = 0
-- BLE device name: BLE_NAME = "Organ Pedal"
-- Serial baud: 115200
-- Sample interval: SAMPLE_INTERVAL_MS = 5 (uses delay)
+- Entry point: `Firmware/main/main.ino`
+- App orchestration: `Firmware/app/app.cpp`
+- ADS1115 driver: `Firmware/drivers/adc/ads1115.cpp`
+- Pedal service: `Firmware/services/input/pedal/pedal_service.cpp`
+- Pedal model: `Firmware/models/pedal_model.h`
+- MIDI CC: `11`
+- MIDI channel: `1`
+- BLE device name: `BLE MIDI Controller`
+- Serial baud: `115200`
+- Sample interval: `5 ms`
 
 Usage
-1. Open `main/main.ino` in Arduino IDE or PlatformIO.
-2. Verify pin wiring and constants if your board differs.
-3. Compile and upload to the board.
-4. Open Serial Monitor at 115200 for debug output.
-5. Pair and connect the BLE MIDI device (named "Organ Pedal") from your host (PC/mobile) and route CC 11 as desired.
+1. Open `Firmware/main/main.ino` in Arduino IDE.
+2. Compile and upload to the board.
+3. Open Serial Monitor at 115200 for debug output.
+4. Pair and connect the BLE MIDI device (named `BLE MIDI Controller`) from your host and route CC 11 as desired.
 
 Notes & future improvements
-- Current loop uses delay(); replace with millis() for concurrent tasks and lower latency.
-- Consider rounding and constrain when converting floats to uint8_t for MIDI values.
-- Calibrations use asymmetric update rates; you may tune the adaptation constants.
-- Add configurable BLE device name and CC/channel via EEPROM or settings UI.
-- Add persistent calibration storage if desired.
+- The FSM layer should take ownership of higher-level flow in a later sprint.
+- Consider moving BLE, display and event coordination out of `app.cpp` once the FSM is introduced.
+- Calibration constants and MIDI routing are still hardcoded for the current prototype.
 
 Repository layout
-- main/main.ino — sketch containing implementation
+- Firmware/main/main.ino — thin sketch entry point
+- Firmware/app/ — application orchestration
+- Firmware/core/ — future FSM, events and states
+- Firmware/drivers/ — hardware access layers
+- Firmware/services/ — algorithmic services
+- Firmware/models/ — domain data structures
 - README.md — this file
-- .gitignore — local backup exclusions
 
 License
 - No license file included; add one if you plan to publish.
