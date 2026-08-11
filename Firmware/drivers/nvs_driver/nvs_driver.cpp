@@ -1,24 +1,47 @@
+/******************************************************************************
+ * @file    nvs_driver.cpp
+ * @author  Andryck Santiago
+ * @brief   ESP32 NVS Driver.
+ *
+ * @details
+ * This module encapsulates the ESP32 Preferences library and provides
+ * a simple interface for persistent storage operations.
+ *
+ * This module is responsible only for low-level non-volatile storage.
+ * Data structures, configuration logic, and application policies are
+ * handled by higher layers of the application.
+ ******************************************************************************/
+
 #include "nvs_driver.h"
 
 #include <Preferences.h>
 
 namespace {
+	//=========================================================================
+    // Private Constants
+    //=========================================================================
 
-constexpr char kNamespace[] = "ble_midi";
+    /// NVS namespace used by the application.
+    constexpr char kNamespace[] = "ble_midi";
 
-Preferences g_preferences;
-bool g_nvs_initialized = false;
+    //=========================================================================
+    // Private Variables
+    //=========================================================================
 
-bool ensure_open() {
-	if (g_nvs_initialized) {
-		return true;
-	}
+    Preferences preferences;
 
-	g_nvs_initialized = g_preferences.begin(kNamespace, false);
-	return g_nvs_initialized;
+    bool isInitialized = false;
+
+    //=========================================================================
+    // Private Function Prototypes
+    //=========================================================================
+
+    bool ensureOpen();
 }
 
-} // namespace
+//=============================================================================
+// Public Functions
+//=============================================================================
 
 bool nvs_init() {
 	return ensure_open();
@@ -29,7 +52,7 @@ bool nvs_read_blob(const char *key, void *data, size_t length) {
 		return false;
 	}
 
-	return g_preferences.getBytes(key, data, length) == length;
+	return preferences.getBytes(key, data, length) == length;
 }
 
 bool nvs_write_blob(const char *key, const void *data, size_t length) {
@@ -37,7 +60,7 @@ bool nvs_write_blob(const char *key, const void *data, size_t length) {
 		return false;
 	}
 
-	return g_preferences.putBytes(key, data, length) == length;
+	return preferences.putBytes(key, data, length) == length;
 }
 
 bool nvs_delete_key(const char *key) {
@@ -45,7 +68,7 @@ bool nvs_delete_key(const char *key) {
 		return false;
 	}
 
-	return g_preferences.remove(key);
+	return preferences.remove(key);
 }
 
 bool nvs_clear() {
@@ -53,5 +76,28 @@ bool nvs_clear() {
 		return false;
 	}
 
-	return g_preferences.clear();
+	return preferences.clear();
+}
+
+//=============================================================================
+// Private Functions
+//=============================================================================
+
+/**
+ * @brief Ensures that the NVS namespace is open.
+ *
+ * Opens the application NVS namespace if it has not been initialized yet.
+ *
+ * @return true if the namespace is open.
+ * @return false if the namespace could not be opened.
+ */
+bool ensureOpen()
+{
+    if(isInitialized){
+        return true;
+    }
+
+    isInitialized = preferences.begin(kNamespace, false);
+
+    return isInitialized;
 }
