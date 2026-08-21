@@ -16,8 +16,8 @@
 4. Private Types
 5. Private Variables
 6. Private Function Prototypes
-7. Public Functions
-8. Private Functions
+7. Private Functions
+8. Public Functions
 
 ## Formatting
 
