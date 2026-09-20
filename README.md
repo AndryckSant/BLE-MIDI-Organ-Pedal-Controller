@@ -32,6 +32,11 @@ Example wiring
 - Pedal output -> ADS1115 A1
 - Pedal GND -> GND
 - Pedal VCC -> 3.3V
+- Configuration button: GPIO34 (D34) -> button -> 3.3V, with an external 10 kOhm pull-down resistor from GPIO34 to GND.
+
+Configuration mode
+- Send `c` or `C` through Serial, or press the button connected to D34.
+- The D34 input uses a 40 ms debounce window. GPIO34 is input-only and has no internal pull-up/pull-down, so the external pull-down resistor is required.
 
 Important code/configuration (see main/main.ino)
 - Entry point: `Firmware/main/main.ino`
