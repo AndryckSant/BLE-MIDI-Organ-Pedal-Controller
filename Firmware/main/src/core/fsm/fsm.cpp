@@ -13,7 +13,9 @@ void handle_event(FsmContext &context, FsmEvent event) {
 		break;
 
 	case FsmState::BleDisconnected:
-		if (event == FsmEvent::BleConnected) {
+		if (event == FsmEvent::EnterConfig) {
+			context.state = FsmState::Config;
+		} else if (event == FsmEvent::BleConnected) {
 			context.state = FsmState::BleConnected;
 		} else if (event == FsmEvent::RuntimeFault) {
 			context.state = FsmState::Error;
