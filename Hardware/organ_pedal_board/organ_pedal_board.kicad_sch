@@ -5183,12 +5183,6 @@
 		(uuid "27300510-e8f0-483e-be12-baac8cce1351")
 	)
 	(junction
-		(at 180.34 43.18)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "3310ce78-1c33-4558-bc87-fb8496f46aa4")
-	)
-	(junction
 		(at 224.79 52.07)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5295,6 +5289,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "dff332d9-aa77-49ca-915a-c4c46c75c491")
+	)
+	(junction
+		(at 184.15 43.18)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "e97dc1ab-bc40-4045-9907-23a38ee5d14d")
 	)
 	(junction
 		(at 168.91 93.98)
@@ -5481,7 +5481,7 @@
 	)
 	(wire
 		(pts
-			(xy 180.34 30.48) (xy 180.34 43.18)
+			(xy 184.15 30.48) (xy 184.15 43.18)
 		)
 		(stroke
 			(width 0)
@@ -5541,7 +5541,7 @@
 	)
 	(wire
 		(pts
-			(xy 190.5 40.64) (xy 182.88 40.64)
+			(xy 190.5 40.64) (xy 186.69 40.64)
 		)
 		(stroke
 			(width 0)
@@ -5612,7 +5612,7 @@
 	)
 	(wire
 		(pts
-			(xy 182.88 48.26) (xy 177.8 48.26)
+			(xy 186.69 48.26) (xy 177.8 48.26)
 		)
 		(stroke
 			(width 0)
@@ -5693,7 +5693,7 @@
 	)
 	(wire
 		(pts
-			(xy 182.88 40.64) (xy 182.88 48.26)
+			(xy 186.69 40.64) (xy 186.69 48.26)
 		)
 		(stroke
 			(width 0)
@@ -5821,6 +5821,16 @@
 		)
 		(uuid "7c84c45a-b66a-44fb-b81c-aec71d730dda")
 	)
+	(wire
+		(pts
+			(xy 184.15 43.18) (xy 190.5 43.18)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "84a53a1b-f19b-4820-ad4f-a38ebb63e58f")
+	)
 	(polyline
 		(pts
 			(xy 213.36 59.6817) (xy 213.36 76.0705)
@@ -5901,16 +5911,6 @@
 			(type default)
 		)
 		(uuid "932b9507-e34a-427b-ba7b-9881eb7ac43d")
-	)
-	(wire
-		(pts
-			(xy 180.34 43.18) (xy 190.5 43.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "93637823-21e2-4ec1-b07d-ee4dbf542dd0")
 	)
 	(wire
 		(pts
@@ -5995,7 +5995,7 @@
 	)
 	(wire
 		(pts
-			(xy 180.34 30.48) (xy 190.5 30.48)
+			(xy 184.15 30.48) (xy 190.5 30.48)
 		)
 		(stroke
 			(width 0)
@@ -6095,7 +6095,7 @@
 	)
 	(wire
 		(pts
-			(xy 175.26 43.18) (xy 180.34 43.18)
+			(xy 175.26 43.18) (xy 184.15 43.18)
 		)
 		(stroke
 			(width 0)
@@ -7547,7 +7547,7 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
 			(at 190.5 35.56 0)
 			(effects
 				(font
@@ -7915,7 +7915,7 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
 			(at 135.89 50.8 0)
 			(effects
 				(font
@@ -8056,7 +8056,7 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
 			(at 195.58 30.48 0)
 			(effects
 				(font
@@ -8532,7 +8532,7 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Jumper:SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm"
 			(at 143.51 31.75 0)
 			(effects
 				(font
@@ -8602,7 +8602,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical"
 			(at 193.802 22.86 90)
 			(effects
 				(font
@@ -9816,7 +9816,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P5.08mm_Vertical"
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical"
 			(at 55.372 38.1 90)
 			(effects
 				(font
@@ -10293,7 +10293,7 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
 			(at 135.89 35.56 0)
 			(effects
 				(font
@@ -10618,7 +10618,6 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "9c42f662-9701-45d4-b0bb-f3d94df7eda8")
 		(property "Reference" "#PWR014"
 			(at 181.61 38.1 0)
@@ -10630,12 +10629,12 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 179.07 38.0999 90)
+			(at 180.34 38.608 90)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify top)
 			)
 		)
 		(property "Footprint" ""
@@ -10773,7 +10772,7 @@
 				(hide yes)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Jumper:SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm"
 			(at 190.5 50.8 0)
 			(effects
 				(font
@@ -12065,7 +12064,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical"
 			(at 141.732 24.13 90)
 			(effects
 				(font
