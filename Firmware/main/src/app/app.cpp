@@ -41,6 +41,8 @@ namespace
  */
 constexpr uint8_t kConfigButtonPin = 34U;
 
+constexpr unsigned long kConfigButtonDebounceMs = 40UL;
+
 /**
  * @brief Number of pedals supported by the hardware.
  */
@@ -65,7 +67,9 @@ bool lastBleConnectedState = false;
 /**
  * @brief Previous state of the configuration button.
  */
-bool configButtonLastState = false;
+bool configButtonRawState = false;
+bool configButtonStableState = false;
+unsigned long configButtonLastChangeTime = 0UL;
 
 /**
  * @brief Application finite state machine context.
@@ -373,27 +377,42 @@ void processPedals();
 
     void processConfigButton()
     {
-        const bool currentButtonState =
+        const bool rawButtonState =
             digitalRead(kConfigButtonPin) == HIGH;
 
-        /*
-        * Detect rising edge.
-        */
-        if (currentButtonState && !configButtonLastState)
+        if (rawButtonState != configButtonRawState)
+        {
+            configButtonRawState = rawButtonState;
+            configButtonLastChangeTime = millis();
+        }
+
+        if (millis() - configButtonLastChangeTime <
+            kConfigButtonDebounceMs)
+        {
+            return;
+        }
+
+        if (configButtonStableState == configButtonRawState)
+        {
+            return;
+        }
+
+        configButtonStableState = configButtonRawState;
+
+        if (configButtonStableState)
         {
             const FsmState currentState =
                 fsm_get_state(fsmContext);
 
             if (currentState == FsmState::BleConnected ||
-                currentState == FsmState::ReadAndSend || currentState == FsmState::BleDisconnected)
+                currentState == FsmState::ReadAndSend ||
+                currentState == FsmState::BleDisconnected)
             {
                 fsm_post(
                     fsmContext,
                     FsmEvent::EnterConfig);
             }
         }
-
-        configButtonLastState = currentButtonState;
     }
 
     void setStatusLed(bool on)
@@ -404,6 +423,11 @@ void processPedals();
     }
 
     void observeBleConnectionState(){
+        if (fsm_get_state(fsmContext) == FsmState::Config)
+        {
+            return;
+        }
+
         const bool currentBleConnectedState = ble_is_connected();
 
         if (currentBleConnectedState == lastBleConnectedState){
@@ -415,17 +439,7 @@ void processPedals();
         fsm_post(fsmContext, currentBleConnectedState ? FsmEvent::BleConnected : FsmEvent::BleDisconnected);
     }
 
-    void observeConfigButtonState(){
-        if (digitalRead(kConfigButtonPin) == HIGH && !configButtonLastState){
-            fsm_post(fsmContext, FsmEvent::EnterConfig);
-        }   
-    }
-
 } // namespace
-
-//=============================================================================
-// Public Functions
-//=============================================================================
 
 void app_init()
 {
@@ -564,8 +578,6 @@ void app_run()
 
         if (config_mode_should_exit())
         {
-            config_mode_exit();
-
             ESP.restart();
         }
 
