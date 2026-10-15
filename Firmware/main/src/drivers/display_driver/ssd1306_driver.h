@@ -19,21 +19,15 @@
 /**
  * @brief SSD1306 initialization status.
  */
-typedef enum
-{
-    SSD1306_OK = 0,
-    SSD1306_ERROR
-
-} SSD1306_Status_t;
-
+enum class Ssd1306Status { kOk = 0, kError };
 
 /**
  * @brief Initializes the SSD1306 OLED display.
  *
- * @return SSD1306_OK if initialization succeeds.
- * @return SSD1306_ERROR otherwise.
+ * @return Ssd1306Status::kOk if initialization succeeds.
+ * @return Ssd1306Status::kError otherwise.
  */
-SSD1306_Status_t ssd1306_init();
+Ssd1306Status ssd1306_init();
 
 /**
  * @brief Clears the display buffer.

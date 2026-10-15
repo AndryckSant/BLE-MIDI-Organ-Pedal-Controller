@@ -24,3 +24,9 @@
 - Opening braces stay on the same line.
 - Four-space indentation.
 - Early return preferred.
+
+## Automated formatting
+
+Firmware C++ files use the repository-root `.clang-format` configuration. Run `clang-format -i` on
+`.cpp` and `.h` files. For the Arduino sketch, pass `--assume-filename=main.cpp` when formatting
+`Firmware/main/main.ino`.

@@ -1,3 +1,8 @@
+/**
+ * @file ble_disconnected.h
+ * @brief BLE-disconnected state entry interface.
+ */
+
 #ifndef BLE_DISCONNECTED_STATE_H
 #define BLE_DISCONNECTED_STATE_H
 

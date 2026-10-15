@@ -22,11 +22,10 @@
 
 #include <Arduino.h>
 
-#include "../../../models/system_config.h"
 #include "../../../board_pins.h"
+#include "../../../models/system_config.h"
 
-namespace
-{
+namespace {
 //=============================================================================
 // Private Constants
 //=============================================================================
@@ -67,11 +66,12 @@ unsigned long lastRawChangeTimes[kMaxButtons] = {};
 // Private Functions
 //=============================================================================
 
-bool readButtonState(const ButtonModel &button)
-{
-    bool state = digitalRead(button.gpio_pin) == HIGH;
+bool readButtonState(const ButtonModel &button);
 
-    if(button.inverted){
+bool readButtonState(const ButtonModel &button) {
+    bool state = digitalRead(button.gpioPin) == HIGH;
+
+    if (button.inverted) {
         state = !state;
     }
 
@@ -84,9 +84,7 @@ bool readButtonState(const ButtonModel &button)
 // Public Functions
 //=============================================================================
 
-void button_init(ButtonModel *buttonsArray,
-                 uint8_t count)
-{
+void button_init(ButtonModel *buttonsArray, uint8_t count) {
     /*
      * Reset the service state before initialization.
      */
@@ -94,18 +92,18 @@ void button_init(ButtonModel *buttonsArray,
     buttonCount = 0U;
     initialized = false;
 
-    if(buttonsArray == nullptr){
+    if (buttonsArray == nullptr) {
         return;
     }
 
-    if(count == 0U){
+    if (count == 0U) {
         return;
     }
 
     buttons = buttonsArray;
     buttonCount = count > kMaxButtons ? kMaxButtons : count;
 
-    for(uint8_t index = 0U; index < buttonCount; ++index){
+    for (uint8_t index = 0U; index < buttonCount; ++index) {
         ButtonModel &button = buttons[index];
         button.latched = false;
 
@@ -115,57 +113,55 @@ void button_init(ButtonModel *buttonsArray,
         /*
          * Disabled buttons do not configure or access their GPIO.
          */
-        if(!button.enabled){
+        if (!button.enabled) {
             button.pressed = false;
-            button.last_pressed = false;
+            button.lastPressed = false;
 
             continue;
         }
 
         /*
-         * Configure the GPIO as a standard digital input. 
-         * 
+         * Configure the GPIO as a standard digital input.
+         *
          * The button circuit provides the required pull-down resistor
          * externally, so no internal pull resistor is enabled.
-         * 
+         *
          * The inverted configuration determines whether the
          * electrical LOW or HIGH state represents a logical press.
          */
-        if (!BoardPins::isMidiButton(button.gpio_pin))
-        {
+        if (!BoardPins::is_midi_button(button.gpioPin)) {
             button.pressed = false;
-            button.last_pressed = false;
+            button.lastPressed = false;
             continue;
         }
 
-        pinMode(button.gpio_pin, kButtonInputMode);
+        pinMode(button.gpioPin, kButtonInputMode);
 
         rawStates[index] = readButtonState(button);
         button.pressed = false;
-        button.last_pressed = false;
+        button.lastPressed = false;
     }
 
     initialized = true;
 }
 
-void button_process()
-{
-    if(!initialized){
+void button_process() {
+    if (!initialized) {
         return;
     }
 
-    if(buttons == nullptr){
+    if (buttons == nullptr) {
         return;
     }
 
-    for(uint8_t index = 0U; index < buttonCount; ++index){
+    for (uint8_t index = 0U; index < buttonCount; ++index) {
         ButtonModel &button = buttons[index];
-        button.last_pressed = button.pressed;
+        button.lastPressed = button.pressed;
 
         /*
          * Disabled buttons remain in the released state.
          */
-        if(!button.enabled){
+        if (!button.enabled) {
             button.pressed = false;
             rawStates[index] = false;
             lastRawChangeTimes[index] = millis();
@@ -173,8 +169,7 @@ void button_process()
             continue;
         }
 
-        if (!BoardPins::isMidiButton(button.gpio_pin))
-        {
+        if (!BoardPins::is_midi_button(button.gpioPin)) {
             button.pressed = false;
             continue;
         }
@@ -182,31 +177,28 @@ void button_process()
         const bool rawState = readButtonState(button);
         const unsigned long currentTime = millis();
 
-        if (rawState != rawStates[index])
-        {
+        if (rawState != rawStates[index]) {
             rawStates[index] = rawState;
             lastRawChangeTimes[index] = currentTime;
         }
 
         if (rawStates[index] != button.pressed &&
-            currentTime - lastRawChangeTimes[index] >= kButtonDebounceMs)
-        {
+            currentTime - lastRawChangeTimes[index] >= kButtonDebounceMs) {
             button.pressed = rawStates[index];
         }
     }
 }
 
-bool button_was_pressed(uint8_t index)
-{
-    if(!initialized){
+bool button_was_pressed(uint8_t index) {
+    if (!initialized) {
         return false;
     }
 
-    if(buttons == nullptr){
+    if (buttons == nullptr) {
         return false;
     }
 
-    if(index >= buttonCount){
+    if (index >= buttonCount) {
         return false;
     }
 
@@ -216,16 +208,14 @@ bool button_was_pressed(uint8_t index)
      * A press event occurs only when the logical button state
      * changes from released to pressed.
      */
-    return button.pressed && !button.last_pressed;
+    return button.pressed && !button.lastPressed;
 }
 
-bool button_was_released(uint8_t index)
-{
-    if (!initialized || buttons == nullptr || index >= buttonCount)
-    {
+bool button_was_released(uint8_t index) {
+    if (!initialized || buttons == nullptr || index >= buttonCount) {
         return false;
     }
 
     const ButtonModel &button = buttons[index];
-    return !button.pressed && button.last_pressed;
+    return !button.pressed && button.lastPressed;
 }

@@ -16,40 +16,35 @@
 
 #include "../../drivers/ble/ble_driver.h"
 
-namespace
-{
-    //=============================================================================
-    // Private Constants
-    //=============================================================================
+namespace {
+//=============================================================================
+// Private Constants
+//=============================================================================
 
-    constexpr uint8_t kMidiChannelMinimum = 1U;
-    constexpr uint8_t kMidiChannelMaximum = 16U;
+constexpr uint8_t kMidiChannelMinimum = 1U;
+constexpr uint8_t kMidiChannelMaximum = 16U;
 
-    constexpr uint8_t kMidiCcMaximum = 127U;
+constexpr uint8_t kMidiCcMaximum = 127U;
 
-    //=============================================================================
-    // Private Types
-    //=============================================================================
+//=============================================================================
+// Private Types
+//=============================================================================
 
-    //=============================================================================
-    // Private Variables
-    //=============================================================================
+//=============================================================================
+// Private Variables
+//=============================================================================
 
-    bool initialized = false;
+bool initialized = false;
 
-    //=============================================================================
-    // Private Functions
-    //=============================================================================
+//=============================================================================
+// Private Functions
+//=============================================================================
 
-    void sendControlChange(uint8_t channel,
-                        uint8_t cc,
-                        uint8_t value)
-    {
-        ble_send_control_change(
-            channel,
-            cc,
-            value);
-    }
+void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value);
+
+void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
+    ble_send_control_change(channel, cc, value);
+}
 
 } // namespace
 
@@ -57,62 +52,52 @@ namespace
 // Public Functions
 //=============================================================================
 
-void midi_init()
-{
+void midi_init() {
     ble_init();
 
     initialized = true;
 }
 
-void midi_deinit()
-{
+void midi_deinit() {
     ble_deinit();
     initialized = false;
 }
 
-void midi_send_control_change(uint8_t channel,
-                              uint8_t cc,
-                              uint8_t value)
-{
-    if(!initialized){
+void midi_send_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
+    if (!initialized) {
         return;
     }
 
-    if(channel < kMidiChannelMinimum ||
-       channel > kMidiChannelMaximum){
+    if (channel < kMidiChannelMinimum || channel > kMidiChannelMaximum) {
         return;
     }
 
-    if(cc > kMidiCcMaximum){
+    if (cc > kMidiCcMaximum) {
         return;
     }
 
-    if(value > kMidiCcMaximum){
+    if (value > kMidiCcMaximum) {
         return;
     }
 
     sendControlChange(channel, cc, value);
 }
 
-void midi_send(const MidiMessage *message)
-{
-    if(!initialized){
+void midi_send(const MidiMessage *message) {
+    if (!initialized) {
         return;
     }
 
-    if(message == nullptr){
+    if (message == nullptr) {
         return;
     }
 
-    switch(message->type){
-        case MidiType::ControlChange:
-            midi_send_control_change(
-                message->channel,
-                message->number,
-                message->value);
-            break;
+    switch (message->type) {
+    case MidiType::ControlChange:
+        midi_send_control_change(message->channel, message->number, message->value);
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 }

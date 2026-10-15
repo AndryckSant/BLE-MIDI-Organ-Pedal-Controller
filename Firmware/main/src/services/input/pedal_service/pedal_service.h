@@ -25,8 +25,7 @@
  * @param pedals Array containing the pedal configurations.
  * @param count Number of pedals.
  */
-void pedal_init(PedalModel *pedals,
-                uint8_t count);
+void pedal_init(PedalModel *pedals, uint8_t count);
 
 /**
  * @brief Processes all configured pedals.

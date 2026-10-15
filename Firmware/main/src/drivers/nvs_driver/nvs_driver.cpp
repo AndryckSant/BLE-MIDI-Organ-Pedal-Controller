@@ -17,89 +17,88 @@
 #include <Preferences.h>
 
 namespace {
-	//=========================================================================
-    // Private Constants
-    //=========================================================================
+//=========================================================================
+// Private Constants
+//=========================================================================
 
-    /// NVS namespace used by the application.
-    constexpr char kNamespace[] = "ble_midi";
+/// NVS namespace used by the application.
+constexpr char kNamespace[] = "ble_midi";
 
-    //=========================================================================
-    // Private Variables
-    //=========================================================================
+//=========================================================================
+// Private Variables
+//=========================================================================
 
-    Preferences preferences;
+Preferences preferences;
 
-    bool isInitialized = false;
+bool isInitialized = false;
 
-    //=============================================================================
-    // Private Functions
-    //=============================================================================
+//=============================================================================
+// Private Functions
+//=============================================================================
 
-    /**
-     * @brief Ensures that the NVS namespace is open.
-     *
-     * Opens the application NVS namespace if it has not been initialized yet.
-     *
-     * @return true if the namespace is open.
-     * @return false if the namespace could not be opened.
-     */
-    bool ensureOpen()
-    {
-        if(isInitialized){
-            return true;
-        }
+bool ensureOpen();
 
-        isInitialized = preferences.begin(kNamespace, false);
-
-        return isInitialized;
+/**
+ * @brief Ensures that the NVS namespace is open.
+ *
+ * Opens the application NVS namespace if it has not been initialized yet.
+ *
+ * @return true if the namespace is open.
+ * @return false if the namespace could not be opened.
+ */
+bool ensureOpen() {
+    if (isInitialized) {
+        return true;
     }
+
+    isInitialized = preferences.begin(kNamespace, false);
+
+    return isInitialized;
 }
+} // namespace
 
 //=============================================================================
 // Public Functions
 //=============================================================================
 
-bool nvs_init() {
-	return ensureOpen();
-}
+bool nvs_init() { return ensureOpen(); }
 
 bool nvs_read_blob(const char *key, void *data, size_t length) {
-	if (!ensureOpen()) {
-		return false;
-	}
+    if (!ensureOpen()) {
+        return false;
+    }
 
-	return preferences.getBytes(key, data, length) == length;
+    return preferences.getBytes(key, data, length) == length;
 }
 
 size_t nvs_get_blob_length(const char *key) {
-	if (!ensureOpen()) {
-		return 0U;
-	}
+    if (!ensureOpen()) {
+        return 0U;
+    }
 
-	return preferences.getBytesLength(key);
+    return preferences.getBytesLength(key);
 }
 
 bool nvs_write_blob(const char *key, const void *data, size_t length) {
-	if (!ensureOpen()) {
-		return false;
-	}
+    if (!ensureOpen()) {
+        return false;
+    }
 
-	return preferences.putBytes(key, data, length) == length;
+    return preferences.putBytes(key, data, length) == length;
 }
 
 bool nvs_delete_key(const char *key) {
-	if (!ensureOpen()) {
-		return false;
-	}
+    if (!ensureOpen()) {
+        return false;
+    }
 
-	return preferences.remove(key);
+    return preferences.remove(key);
 }
 
 bool nvs_clear() {
-	if (!ensureOpen()) {
-		return false;
-	}
+    if (!ensureOpen()) {
+        return false;
+    }
 
-	return preferences.clear();
+    return preferences.clear();
 }

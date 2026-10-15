@@ -1,16 +1,22 @@
+/**
+ * @file ble_connected.cpp
+ * @brief BLE-connected state entry actions.
+ */
+
 #include "ble_connected.h"
 
-void ble_connected_enter(const StateActions &actions, uint8_t midi_channel, uint8_t midi_cc, uint8_t midi_value) {
-    if (actions.set_led != nullptr) {
-        actions.set_led(true);
+void ble_connected_enter(const StateActions &actions, uint8_t midiChannel, uint8_t midiCc,
+                         uint8_t midiValue) {
+    if (actions.setLed != nullptr) {
+        actions.setLed(true);
     }
-    if (actions.log_message != nullptr) {
-        actions.log_message("BLE Client connected!");
+    if (actions.logMessage != nullptr) {
+        actions.logMessage("BLE Client connected!");
     }
-    if (actions.send_control_change != nullptr) {
-        actions.send_control_change(midi_channel, midi_cc, midi_value);
+    if (actions.sendControlChange != nullptr) {
+        actions.sendControlChange(midiChannel, midiCc, midiValue);
     }
-    if (actions.show_status != nullptr) {
-        actions.show_status(true, midi_value);
+    if (actions.showStatus != nullptr) {
+        actions.showStatus(true, midiValue);
     }
 }

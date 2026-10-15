@@ -16,8 +16,6 @@
 
 #include <stddef.h>
 
-
-
 /**
  * @brief Initializes the NVS driver.
  *

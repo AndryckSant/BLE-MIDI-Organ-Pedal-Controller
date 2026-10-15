@@ -21,9 +21,9 @@
 #include "../core/states/config.h"
 #include "../core/states/state_actions.h"
 
+#include "../board_pins.h"
 #include "../drivers/adc/ads1115.h"
 #include "../drivers/ble/ble_driver.h"
-#include "../board_pins.h"
 
 #include "../services/config_service/config_service.h"
 #include "../services/display_service/display_service.h"
@@ -31,8 +31,7 @@
 #include "../services/input/pedal_service/pedal_service.h"
 #include "../services/midi_service/midi_service.h"
 
-namespace
-{
+namespace {
 
 //=============================================================================
 // Private Constants
@@ -97,8 +96,8 @@ const SystemConfig *systemConfig = nullptr;
 /**
  * @brief Pointer to the mutable pedal configuration array.
  *
- * The pedal service modifies runtime fields such as raw_value,
- * filtered_value, midi_value, and last_midi_value.
+ * The pedal service modifies runtime fields such as rawValue,
+ * filteredValue, midiValue, and lastMidiValue.
  */
 PedalModel *pedals = nullptr;
 ButtonModel *buttons = nullptr;
@@ -135,9 +134,7 @@ void setStatusLed(bool on);
  * @param connected BLE connection state.
  * @param midiValue Initial MIDI value associated with the connection.
  */
-void showStatus(
-    bool connected,
-    uint8_t midiValue);
+void showStatus(bool connected, uint8_t midiValue);
 
 /**
  * @brief Logs a message to the serial interface.
@@ -153,9 +150,7 @@ void logMessage(const char *message);
  * @param cc MIDI Control Change number.
  * @param value MIDI value.
  */
-void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
-    midi_send_control_change(channel, cc, value);
-}
+void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value);
 
 /**
  * @brief Handles an FSM state transition.
@@ -174,335 +169,258 @@ void processPedals();
  */
 void processButtons();
 
+/**
+ * @brief Tracks BLE connection changes outside configuration mode.
+ */
+void observeBleConnectionState();
+
 //=============================================================================
 // Private Functions
 //=============================================================================
 
+void sendControlChange(uint8_t channel, uint8_t cc, uint8_t value) {
+    midi_send_control_change(channel, cc, value);
+}
 
-    void showStatus(
-        bool connected,
-        uint8_t midiValue)
-    {
-        /*
-        * The display service currently only receives the BLE
-        * connection state. The initial MIDI value is handled
-        * by the BLE-connected state through the MIDI callback.
-        */
-        (void)midiValue;
-        Serial.print("showStatus(): ");
-        Serial.println(connected ? "CONNECTED" : "DISCONNECTED");
-        display_show_ble_status(connected);
+void showStatus(bool connected, uint8_t midiValue) {
+    /*
+     * The display service currently only receives the BLE
+     * connection state. The initial MIDI value is handled
+     * by the BLE-connected state through the MIDI callback.
+     */
+    (void)midiValue;
+    Serial.print("showStatus(): ");
+    Serial.println(connected ? "CONNECTED" : "DISCONNECTED");
+    display_show_ble_status(connected);
+}
+
+void logMessage(const char *message) {
+    if (message == nullptr) {
+        return;
     }
 
-    void logMessage(const char *message)
-    {
-        if (message == nullptr)
-        {
-            return;
-        }
+    Serial.println(message);
+}
 
-        Serial.println(message);
+void handleStateChange(FsmState currentState) {
+    /*
+     * Leave configuration mode before entering another state.
+     */
+    if (lastState == FsmState::Config && currentState != FsmState::Config) {
+        config_mode_exit();
+        midi_init();
+        lastBleConnectedState = false;
     }
 
-    void handleStateChange(FsmState currentState)
-    {
-        /*
-        * Leave configuration mode before entering another state.
-        */
-        if (lastState == FsmState::Config &&
-            currentState != FsmState::Config)
-        {
-            config_mode_exit();
-            midi_init();
-            lastBleConnectedState = false;
-        }
+    switch (currentState) {
+    case FsmState::BleDisconnected:
+        fsm_post(fsmContext, FsmEvent::StopStream);
+        delay(1000);
+        ble_disconnected_enter(stateActions);
 
-        switch (currentState)
-        {
-            case FsmState::BleDisconnected:
-                fsm_post(fsmContext, FsmEvent::StopStream);
-                delay(1000);
-                ble_disconnected_enter(
-                    stateActions);
+        break;
 
-                break;
+    case FsmState::BleConnected:
 
-            case FsmState::BleConnected:
-
-                if (pedals == nullptr)
-                {
-                    return;
-                }
-                ble_connected_enter(
-                    stateActions,
-                    pedals[0].midi_channel,
-                    pedals[0].midi_cc,
-                    0);
-                delay(2000);
-                fsm_post(fsmContext, FsmEvent::StartStream);
-
-
-                break;
-
-            case FsmState::ReadAndSend:
-
-                if (pedals == nullptr)
-                {
-                    return;
-                }
-
-                /*
-                * The BLE connection is already established.
-                * The pedal service takes responsibility for
-                * generating subsequent MIDI values.
-                */
-                break;
-
-            case FsmState::Config:
-                midi_deinit();
-                lastBleConnectedState = false;
-                delay(1000);
-                config_mode_enter(stateActions);
-
-                break;
-
-            case FsmState::Boot:
-            case FsmState::Error:
-            default:
-
-                break;
-        }
-    }
-
-    void processPedals()
-    {
-        if (pedals == nullptr)
-        {
+        if (pedals == nullptr) {
             return;
         }
+        ble_connected_enter(stateActions, pedals[0].midiChannel, pedals[0].midiCc, 0);
+        delay(2000);
+        fsm_post(fsmContext, FsmEvent::StartStream);
 
-        const unsigned long currentTime = millis();
+        break;
 
-        if (currentTime - lastSampleTime < kSampleIntervalMs)
-        {
+    case FsmState::ReadAndSend:
+
+        if (pedals == nullptr) {
             return;
         }
-
-        lastSampleTime = currentTime;
 
         /*
-        * The pedal service handles:
-        *
-        * - ADC acquisition
-        * - filtering
-        * - calibration
-        * - normalization
-        * - MIDI value generation
-        */
-        pedal_process();
+         * The BLE connection is already established.
+         * The pedal service takes responsibility for
+         * generating subsequent MIDI values.
+         */
+        break;
 
-        for (uint8_t index = 0U;
-            index < kPedalCount;
-            ++index)
-        {
-            if (!pedal_has_new_value(index))
-            {
-                continue;
-            }
+    case FsmState::Config:
+        midi_deinit();
+        lastBleConnectedState = false;
+        delay(1000);
+        config_mode_enter(stateActions);
 
-            PedalModel &pedal = pedals[index];
+        break;
 
-            /*
-            * Send the newly generated MIDI value through
-            * the application MIDI callback.
-            */
-            sendControlChange(
-                pedal.midi_channel,
-                pedal.midi_cc,
-                pedal.midi_value);
+    case FsmState::Boot:
+    case FsmState::Error:
+    default:
 
-            /*
-            * Mark the value as transmitted.
-            */
-            pedal.last_midi_value =
-                pedal.midi_value;
+        break;
+    }
+}
 
-            /*
-            * Update the display with the transmitted value.
-            */
-            display_show_pedal(
-                index,
-                pedal.midi_value);
-
-            /*
-            * Log the transmitted value for debugging.
-            */
-            Serial.printf(
-                "Pedal %u - MIDI CC%d: %d (raw: %d, filtered: %d)\n",
-                index + 1U,
-                pedal.midi_cc,
-                pedal.midi_value,
-                pedal.raw_value,
-                pedal.filtered_value);
-        }
+void processPedals() {
+    if (pedals == nullptr) {
+        return;
     }
 
-    void processButtons()
-    {
-        if (buttons == nullptr)
-        {
-            return;
-        }
+    const unsigned long currentTime = millis();
 
-        button_process();
-
-        for (uint8_t index = 0U;
-             index < kButtonCount;
-             ++index)
-        {
-            ButtonModel &button = buttons[index];
-
-            if (button_was_pressed(index))
-            {
-                const uint8_t midiValue = button.latch
-                    ? (button.latched ? 0U : 127U)
-                    : 127U;
-
-                if (button.latch)
-                {
-                    button.latched = !button.latched;
-                }
-
-                sendControlChange(
-                    button.midi_channel,
-                    button.midi_cc,
-                    midiValue);
-                Serial.printf(
-                    "Button %u pressed - MIDI CC%d: %u\n",
-                    index + 1U,
-                    button.midi_cc,
-                    midiValue);
-            }
-            else if (!button.latch && button_was_released(index))
-            {
-                sendControlChange(
-                    button.midi_channel,
-                    button.midi_cc,
-                    0U);
-                Serial.printf(
-                    "Button %u released - MIDI CC%d: 0\n",
-                    index + 1U,
-                    button.midi_cc);
-            }
-        }
+    if (currentTime - lastSampleTime < kSampleIntervalMs) {
+        return;
     }
 
-    void processSerialCommands()
-    {
-        const FsmState currentState =
-            fsm_get_state(fsmContext);
+    lastSampleTime = currentTime;
 
-        while (Serial.available() > 0)
-        {
-            const int value = Serial.read();
+    /*
+     * The pedal service handles:
+     *
+     * - ADC acquisition
+     * - filtering
+     * - calibration
+     * - normalization
+     * - MIDI value generation
+     */
+    pedal_process();
 
-            /*
-            * 'C' enters configuration mode.
-            */
-            if ((value == 'c' || value == 'C'))
-            {
+    for (uint8_t index = 0U; index < kPedalCount; ++index) {
+        if (!pedal_has_new_value(index)) {
+            continue;
+        }
 
-                Serial.println("Posting EnterConfig");
+        PedalModel &pedal = pedals[index];
 
-                fsm_post(
-                    fsmContext,
-                    FsmEvent::EnterConfig);
+        /*
+         * Send the newly generated MIDI value through
+         * the application MIDI callback.
+         */
+        sendControlChange(pedal.midiChannel, pedal.midiCc, pedal.midiValue);
 
-                continue;
+        /*
+         * Mark the value as transmitted.
+         */
+        pedal.lastMidiValue = pedal.midiValue;
+
+        /*
+         * Update the display with the transmitted value.
+         */
+        display_show_pedal(index, pedal.midiValue);
+
+        /*
+         * Log the transmitted value for debugging.
+         */
+        Serial.printf("Pedal %u - MIDI CC%d: %d (raw: %d, filtered: %d)\n", index + 1U,
+                      pedal.midiCc, pedal.midiValue, pedal.rawValue, pedal.filteredValue);
+    }
+}
+
+void processButtons() {
+    if (buttons == nullptr) {
+        return;
+    }
+
+    button_process();
+
+    for (uint8_t index = 0U; index < kButtonCount; ++index) {
+        ButtonModel &button = buttons[index];
+
+        if (button_was_pressed(index)) {
+            const uint8_t midiValue = button.latch ? (button.latched ? 0U : 127U) : 127U;
+
+            if (button.latch) {
+                button.latched = !button.latched;
             }
 
-            /*
-            * 'X' requests configuration mode exit.
-            */
-            if (value == 'x' || value == 'X')
-            {
-                 Serial.println("Posting ExitConfig");
-
-                fsm_post(
-                    fsmContext,
-                    FsmEvent::ExitConfig);
-            }
+            sendControlChange(button.midiChannel, button.midiCc, midiValue);
+            Serial.printf("Button %u pressed - MIDI CC%d: %u\n", index + 1U, button.midiCc,
+                          midiValue);
+        } else if (!button.latch && button_was_released(index)) {
+            sendControlChange(button.midiChannel, button.midiCc, 0U);
+            Serial.printf("Button %u released - MIDI CC%d: 0\n", index + 1U, button.midiCc);
         }
     }
+}
 
-    void processConfigButton()
-    {
-        const bool rawButtonState =
-            digitalRead(BoardPins::kConfigButton) == HIGH;
+void processSerialCommands() {
+    const FsmState currentState = fsm_get_state(fsmContext);
 
-        if (rawButtonState != configButtonRawState)
-        {
-            configButtonRawState = rawButtonState;
-            configButtonLastChangeTime = millis();
+    while (Serial.available() > 0) {
+        const int value = Serial.read();
+
+        /*
+         * 'C' enters configuration mode.
+         */
+        if ((value == 'c' || value == 'C')) {
+
+            Serial.println("Posting EnterConfig");
+
+            fsm_post(fsmContext, FsmEvent::EnterConfig);
+
+            continue;
         }
 
-        if (millis() - configButtonLastChangeTime <
-            kConfigButtonDebounceMs)
-        {
-            return;
-        }
+        /*
+         * 'X' requests configuration mode exit.
+         */
+        if (value == 'x' || value == 'X') {
+            Serial.println("Posting ExitConfig");
 
-        if (configButtonStableState == configButtonRawState)
-        {
-            return;
-        }
-
-        configButtonStableState = configButtonRawState;
-
-        if (configButtonStableState)
-        {
-            const FsmState currentState =
-                fsm_get_state(fsmContext);
-
-            if (currentState == FsmState::BleConnected ||
-                currentState == FsmState::ReadAndSend ||
-                currentState == FsmState::BleDisconnected)
-            {
-                fsm_post(
-                    fsmContext,
-                    FsmEvent::EnterConfig);
-            }
+            fsm_post(fsmContext, FsmEvent::ExitConfig);
         }
     }
+}
 
-    void setStatusLed(bool on)
-    {
-        digitalWrite(
-            kStatusLedPin,
-            on ? HIGH : LOW);
+void processConfigButton() {
+    const bool rawButtonState = digitalRead(BoardPins::kConfigButton) == HIGH;
+
+    if (rawButtonState != configButtonRawState) {
+        configButtonRawState = rawButtonState;
+        configButtonLastChangeTime = millis();
     }
 
-    void observeBleConnectionState(){
-        if (fsm_get_state(fsmContext) == FsmState::Config)
-        {
-            return;
-        }
-
-        const bool currentBleConnectedState = ble_is_connected();
-
-        if (currentBleConnectedState == lastBleConnectedState){
-            return;
-        }
-
-        lastBleConnectedState = currentBleConnectedState;
-
-        fsm_post(fsmContext, currentBleConnectedState ? FsmEvent::BleConnected : FsmEvent::BleDisconnected);
+    if (millis() - configButtonLastChangeTime < kConfigButtonDebounceMs) {
+        return;
     }
+
+    if (configButtonStableState == configButtonRawState) {
+        return;
+    }
+
+    configButtonStableState = configButtonRawState;
+
+    if (configButtonStableState) {
+        const FsmState currentState = fsm_get_state(fsmContext);
+
+        if (currentState == FsmState::BleConnected || currentState == FsmState::ReadAndSend ||
+            currentState == FsmState::BleDisconnected) {
+            fsm_post(fsmContext, FsmEvent::EnterConfig);
+        }
+    }
+}
+
+void setStatusLed(bool on) { digitalWrite(kStatusLedPin, on ? HIGH : LOW); }
+
+void observeBleConnectionState() {
+    if (fsm_get_state(fsmContext) == FsmState::Config) {
+        return;
+    }
+
+    const bool currentBleConnectedState = ble_is_connected();
+
+    if (currentBleConnectedState == lastBleConnectedState) {
+        return;
+    }
+
+    lastBleConnectedState = currentBleConnectedState;
+
+    fsm_post(fsmContext,
+             currentBleConnectedState ? FsmEvent::BleConnected : FsmEvent::BleDisconnected);
+}
 
 } // namespace
 
-void app_init()
-{
+void app_init() {
     Serial.begin(115200);
 
     Serial.println("Starting BLE MIDI Device");
@@ -521,8 +439,7 @@ void app_init()
     /*
      * Initialize the ADC driver.
      */
-    if (ads1115_init() != ADS1115_OK)
-    {
+    if (ads1115_init() != Ads1115Status::kOk) {
         Serial.println("ADS1115 initialization failed.");
     }
 
@@ -536,8 +453,7 @@ void app_init()
     /*
      * Initialize the display service.
      */
-    if (!display_init())
-    {
+    if (!display_init()) {
         Serial.println("Display initialization failed.");
     }
 
@@ -551,8 +467,7 @@ void app_init()
      */
     systemConfig = config_service_get();
 
-    if (systemConfig == nullptr)
-    {
+    if (systemConfig == nullptr) {
         Serial.println("Configuration unavailable.");
 
         return;
@@ -567,8 +482,7 @@ void app_init()
     pedals = config_service_get_mutable().pedals;
     buttons = config_service_get_mutable().buttons;
 
-    if (pedals == nullptr)
-    {
+    if (pedals == nullptr) {
         Serial.println("Pedal configuration unavailable.");
 
         return;
@@ -577,23 +491,19 @@ void app_init()
     /*
      * Initialize the pedal service using the configured pedal models.
      */
-    pedal_init(
-        pedals,
-        kPedalCount);
+    pedal_init(pedals, kPedalCount);
 
-    button_init(
-        buttons,
-        kButtonCount);
+    button_init(buttons, kButtonCount);
 
     /*
      * Configure the callbacks used by the FSM states.
      */
-    stateActions.set_led = setStatusLed;
-    stateActions.show_status = showStatus;
-    stateActions.log_message = logMessage;
-    stateActions.send_control_change = sendControlChange;
-    stateActions.display_show_config = display_show_config;
-    stateActions.display_show_error = display_show_error;
+    stateActions.setLed = setStatusLed;
+    stateActions.showStatus = showStatus;
+    stateActions.logMessage = logMessage;
+    stateActions.sendControlChange = sendControlChange;
+    stateActions.displayShowConfig = display_show_config;
+    stateActions.displayShowError = display_show_error;
 
     /*
      * Initialize the finite state machine.
@@ -606,13 +516,12 @@ void app_init()
      * Show the initial application screen.
      */
     display_show_boot();
-    
+
     Serial.println("Waiting for BLE connection...");
     delay(1000);
 }
 
-void app_run()
-{
+void app_run() {
     observeBleConnectionState();
     processSerialCommands();
     processConfigButton();
@@ -622,14 +531,12 @@ void app_run()
      */
     fsm_run(fsmContext);
 
-    const FsmState currentState =
-        fsm_get_state(fsmContext);
+    const FsmState currentState = fsm_get_state(fsmContext);
 
     /*
      * Process state transitions.
      */
-    if (currentState != lastState)
-    {
+    if (currentState != lastState) {
         handleStateChange(currentState);
 
         lastState = currentState;
@@ -638,12 +545,10 @@ void app_run()
     /*
      * Configuration mode owns the application while active.
      */
-    if (currentState == FsmState::Config)
-    {
+    if (currentState == FsmState::Config) {
         config_mode_run();
 
-        if (config_mode_should_exit())
-        {
+        if (config_mode_should_exit()) {
             ESP.restart();
         }
 
@@ -654,10 +559,8 @@ void app_run()
      * Pedals are processed only while the FSM is in the
      * normal MIDI transmission state.
      */
-    if (currentState == FsmState::ReadAndSend)
-    {
+    if (currentState == FsmState::ReadAndSend) {
         processPedals();
         processButtons();
     }
-
 }

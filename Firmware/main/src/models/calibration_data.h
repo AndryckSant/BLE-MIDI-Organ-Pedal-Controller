@@ -18,10 +18,10 @@
  * @brief Stores calibration parameters and state.
  */
 struct CalibrationData {
-    float minimum; // Minimum observed value
-    float maximum; // Maximum observed value
+    float minimum;    // Minimum observed value
+    float maximum;    // Maximum observed value
     bool initialized; // Flag to indicate if calibration has been initialized
-    bool auto_range; // Whether calibration limits adapt to new extremes
+    bool autoRange;   // Whether calibration limits adapt to new extremes
 };
 
 #endif // CALIBRATION_MODEL_H

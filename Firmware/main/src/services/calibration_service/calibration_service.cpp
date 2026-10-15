@@ -21,8 +21,7 @@
 
 #include "calibration_service.h"
 
-namespace
-{
+namespace {
 //=============================================================================
 // Private Constants
 //=============================================================================
@@ -69,6 +68,8 @@ constexpr float kNormalizedMaximum = 1.0f;
 // Private Functions
 //=============================================================================
 
+float clampValue(float value, float minimum, float maximum);
+
 /**
  * @brief Clamps a value between a minimum and maximum limit.
  *
@@ -78,15 +79,12 @@ constexpr float kNormalizedMaximum = 1.0f;
  *
  * @return Clamped value.
  */
-float clamp_value(float value,
-                  float minimum,
-                  float maximum)
-{
-    if(value < minimum){
+float clampValue(float value, float minimum, float maximum) {
+    if (value < minimum) {
         return minimum;
     }
 
-    if(value > maximum){
+    if (value > maximum) {
         return maximum;
     }
 
@@ -99,9 +97,8 @@ float clamp_value(float value,
 // Public Functions
 //=============================================================================
 
-void calibration_init(CalibrationData *calibration)
-{
-    if(calibration == nullptr){
+void calibration_init(CalibrationData *calibration) {
+    if (calibration == nullptr) {
         return;
     }
 
@@ -110,21 +107,19 @@ void calibration_init(CalibrationData *calibration)
     calibration->initialized = false;
 }
 
-void calibration_update(CalibrationData *calibration,
-                        int16_t value)
-{
-    if(calibration == nullptr){
+void calibration_update(CalibrationData *calibration, int16_t value) {
+    if (calibration == nullptr) {
         return;
     }
 
-    if(!calibration->auto_range){
+    if (!calibration->autoRange) {
         return;
     }
 
     /*
      * The first sample establishes the initial calibration range.
      */
-    if(!calibration->initialized){
+    if (!calibration->initialized) {
         calibration->minimum = value;
         calibration->maximum = value;
         calibration->initialized = true;
@@ -139,12 +134,9 @@ void calibration_update(CalibrationData *calibration,
      * The adaptation prevents a single noisy sample from
      * immediately defining the complete calibration limit.
      */
-    if(value < calibration->minimum){
-        calibration->minimum =
-            calibration->minimum *
-                (1.0f - kExtremeAdaptationRate) +
-            static_cast<float>(value) *
-                kExtremeAdaptationRate;
+    if (value < calibration->minimum) {
+        calibration->minimum = calibration->minimum * (1.0f - kExtremeAdaptationRate) +
+                               static_cast<float>(value) * kExtremeAdaptationRate;
     }
 
     /*
@@ -154,42 +146,32 @@ void calibration_update(CalibrationData *calibration,
      * The same filtering strategy used for the minimum is applied
      * here.
      */
-    if(value > calibration->maximum){
-        calibration->maximum =
-            calibration->maximum *
-                (1.0f - kExtremeAdaptationRate) +
-            static_cast<float>(value) *
-                kExtremeAdaptationRate;
+    if (value > calibration->maximum) {
+        calibration->maximum = calibration->maximum * (1.0f - kExtremeAdaptationRate) +
+                               static_cast<float>(value) * kExtremeAdaptationRate;
     }
 }
 
-void calibration_reset(CalibrationData *calibration)
-{
-    calibration_init(calibration);
-}
+void calibration_reset(CalibrationData *calibration) { calibration_init(calibration); }
 
-float calibration_normalize(const CalibrationData *calibration,
-                            int16_t value)
-{
-    if(calibration == nullptr){
+float calibration_normalize(const CalibrationData *calibration, int16_t value) {
+    if (calibration == nullptr) {
         return kNormalizedMinimum;
     }
 
-    if(!calibration->initialized){
+    if (!calibration->initialized) {
         return kNormalizedMinimum;
     }
 
     /*
      * Calculate the currently learned calibration span.
      */
-    float span =
-        calibration->maximum -
-        calibration->minimum;
+    float span = calibration->maximum - calibration->minimum;
 
     /*
      * Prevent division by an excessively small calibration range.
      */
-    if(span < kMinimumCalibrationSpan){
+    if (span < kMinimumCalibrationSpan) {
         span = kMinimumCalibrationSpan;
     }
 
@@ -206,18 +188,14 @@ float calibration_normalize(const CalibrationData *calibration,
      * This provides tolerance against small variations in the
      * electrical signal around the learned endpoints.
      */
-    float effectiveMinimum =
-        calibration->minimum -
-        span * kCalibrationMargin;
+    float effectiveMinimum = calibration->minimum - span * kCalibrationMargin;
 
-    float effectiveMaximum =
-        calibration->maximum +
-        span * kCalibrationMargin;
+    float effectiveMaximum = calibration->maximum + span * kCalibrationMargin;
 
     /*
      * Prevent an invalid calibration range.
      */
-    if(effectiveMaximum <= effectiveMinimum){
+    if (effectiveMaximum <= effectiveMinimum) {
         return kNormalizedMinimum;
     }
 
@@ -225,14 +203,11 @@ float calibration_normalize(const CalibrationData *calibration,
      * Convert the ADC value into the normalized range [0.0, 1.0].
      */
     float normalized =
-        (static_cast<float>(value) - effectiveMinimum) /
-        (effectiveMaximum - effectiveMinimum);
+        (static_cast<float>(value) - effectiveMinimum) / (effectiveMaximum - effectiveMinimum);
 
     /*
      * Guarantee that the service never returns a value outside
      * the normalized range.
      */
-    return clamp_value(normalized,
-                       kNormalizedMinimum,
-                       kNormalizedMaximum);
+    return clampValue(normalized, kNormalizedMinimum, kNormalizedMaximum);
 }

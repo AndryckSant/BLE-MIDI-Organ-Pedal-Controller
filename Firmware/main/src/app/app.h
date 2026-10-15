@@ -1,3 +1,8 @@
+/**
+ * @file app.h
+ * @brief Public application initialization and runtime interface.
+ */
+
 #ifndef APP_H
 #define APP_H
 

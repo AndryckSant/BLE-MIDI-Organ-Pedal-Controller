@@ -14,31 +14,31 @@
 
 #include "ads1115.h"
 
+#include <Adafruit_ADS1X15.h>
 #include <Arduino.h>
 #include <Wire.h>
-#include <Adafruit_ADS1X15.h>
 
 namespace {
-    //=========================================================================
-    // Private Constants
-    //=========================================================================
+//=========================================================================
+// Private Constants
+//=========================================================================
 
-    /// I2C SDA pin connected to the ADS1115.
-	constexpr uint8_t kI2cSda = 21;
+/// I2C SDA pin connected to the ADS1115.
+constexpr uint8_t kI2cSda = 21;
 
-	/// I2C SCL pin connected to the ADS1115.
-	constexpr uint8_t kI2cScl = 22;
+/// I2C SCL pin connected to the ADS1115.
+constexpr uint8_t kI2cScl = 22;
 
-	/// ADS1115 default I2C address.
-    constexpr uint8_t kAds1115Address = 0x48;
+/// ADS1115 default I2C address.
+constexpr uint8_t kAds1115Address = 0x48;
 
-	//=========================================================================
-    // Private Variables
-    //=========================================================================
+//=========================================================================
+// Private Variables
+//=========================================================================
 
-    Adafruit_ADS1115 ads;
+Adafruit_ADS1115 ads;
 
-    bool isInitialized = false;
+bool isInitialized = false;
 
 } // namespace
 
@@ -46,49 +46,42 @@ namespace {
 // Public Functions
 //=============================================================================
 
+Ads1115Status ads1115_init(void) {
+    if (isInitialized) {
+        return Ads1115Status::kOk;
+    }
 
-ADS1115_Status_t ads1115_init(void){
-	if (isInitialized) {
-		return ADS1115_OK;
-	}
+    Wire.begin(kI2cSda, kI2cScl);
+    ads.setGain(GAIN_ONE);
 
-	Wire.begin(kI2cSda, kI2cScl);
-	ads.setGain(GAIN_ONE);
-
-	if(!ads.begin(kAds1115Address, &Wire)){
-		return ADS1115_ERROR;
-	}
-	isInitialized = true;
-	return ADS1115_OK;
+    if (!ads.begin(kAds1115Address, &Wire)) {
+        return Ads1115Status::kError;
+    }
+    isInitialized = true;
+    return Ads1115Status::kOk;
 }
 
-int16_t ads1115_read_channel(uint8_t channel){
-	if (!isInitialized) {
-		return 0.0f;
-	}
-	if(channel > 3){
-		return 0;
-	}
+int16_t ads1115_read_channel(uint8_t channel) {
+    if (!isInitialized) {
+        return 0.0f;
+    }
+    if (channel > 3) {
+        return 0;
+    }
 
-	return ads.readADC_SingleEnded(channel);
+    return ads.readADC_SingleEnded(channel);
 }
 
-float ads1115_read_voltage(uint8_t channel)
-{
-    if(!isInitialized)
-    {
+float ads1115_read_voltage(uint8_t channel) {
+    if (!isInitialized) {
         return 0.0f;
     }
 
-    if(channel > 3)
-    {
+    if (channel > 3) {
         return 0.0f;
     }
 
     return ads.computeVolts(ads.readADC_SingleEnded(channel));
 }
 
-bool ads1115_is_ready()
-{
-    return isInitialized;
-}
+bool ads1115_is_ready() { return isInitialized; }

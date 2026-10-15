@@ -25,8 +25,7 @@
  * @param buttons Array containing the button configurations.
  * @param count Number of buttons.
  */
-void button_init(ButtonModel *buttons,
-                 uint8_t count);
+void button_init(ButtonModel *buttons, uint8_t count);
 
 /**
  * @brief Processes all configured buttons.

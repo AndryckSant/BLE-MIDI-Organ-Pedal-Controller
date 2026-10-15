@@ -1,6 +1,3 @@
-#ifndef BLE_DRIVER_H
-#define BLE_DRIVER_H
-
 /******************************************************************************
  * @file    ble_driver.h
  * @author  Andryck Santiago
@@ -11,6 +8,9 @@
  * querying the BLE connection state, and sending MIDI Control
  * Change messages.
  ******************************************************************************/
+
+#ifndef BLE_DRIVER_H
+#define BLE_DRIVER_H
 
 #include <stdint.h>
 
@@ -41,8 +41,6 @@ bool ble_is_connected();
  * @param cc MIDI Control Change number.
  * @param value MIDI Control Change value (0-127).
  */
-void ble_send_control_change(uint8_t channel,
-                             uint8_t cc,
-                             uint8_t value);
+void ble_send_control_change(uint8_t channel, uint8_t cc, uint8_t value);
 
 #endif // BLE_DRIVER_H

@@ -14,52 +14,45 @@
 
 #include "ssd1306_driver.h"
 
-#include <Arduino.h>
-#include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-
+#include <Arduino.h>
+#include <Wire.h>
 
 namespace {
-    //=========================================================================
-    // Private Constants
-    //=========================================================================
+//=========================================================================
+// Private Constants
+//=========================================================================
 
-    /// OLED display width in pixels.
-    constexpr uint8_t kScreenWidth = 128;
+/// OLED display width in pixels.
+constexpr uint8_t kScreenWidth = 128;
 
-    /// OLED display height in pixels.
-    constexpr uint8_t kScreenHeight = 32;
+/// OLED display height in pixels.
+constexpr uint8_t kScreenHeight = 32;
 
-    /// SSD1306 I2C address.
-    constexpr uint8_t kI2cAddress = 0x3C;
+/// SSD1306 I2C address.
+constexpr uint8_t kI2cAddress = 0x3C;
 
-    //=========================================================================
-    // Private Variables
-    //=========================================================================
+//=========================================================================
+// Private Variables
+//=========================================================================
 
-    Adafruit_SSD1306 display(
-        kScreenWidth,
-        kScreenHeight,
-        &Wire,
-        -1
-    );
+Adafruit_SSD1306 display(kScreenWidth, kScreenHeight, &Wire, -1);
 
-    bool isInitialized = false;
-}
+bool isInitialized = false;
+} // namespace
 
 //=============================================================================
 // Public Functions
 //=============================================================================
 
-SSD1306_Status_t ssd1306_init()
-{
-    if(isInitialized){
-        return SSD1306_OK;
+Ssd1306Status ssd1306_init() {
+    if (isInitialized) {
+        return Ssd1306Status::kOk;
     }
 
-    if(!display.begin(SSD1306_SWITCHCAPVCC, kI2cAddress)){
-        return SSD1306_ERROR;
+    if (!display.begin(SSD1306_SWITCHCAPVCC, kI2cAddress)) {
+        return Ssd1306Status::kError;
     }
 
     display.clearDisplay();
@@ -69,46 +62,39 @@ SSD1306_Status_t ssd1306_init()
 
     isInitialized = true;
 
-    return SSD1306_OK;
+    return Ssd1306Status::kOk;
 }
 
-void ssd1306_clear()
-{
-    if(!isInitialized){
+void ssd1306_clear() {
+    if (!isInitialized) {
         return;
     }
 
     display.clearDisplay();
 }
 
-void ssd1306_set_cursor(uint8_t x, uint8_t y)
-{
-    if(!isInitialized){
+void ssd1306_set_cursor(uint8_t x, uint8_t y) {
+    if (!isInitialized) {
         return;
     }
 
     display.setCursor(x, y);
 }
 
-void ssd1306_print(const char *text)
-{
-    if(!isInitialized){
+void ssd1306_print(const char *text) {
+    if (!isInitialized) {
         return;
     }
 
     display.print(text);
 }
 
-void ssd1306_display()
-{
-    if(!isInitialized){
+void ssd1306_display() {
+    if (!isInitialized) {
         return;
     }
 
     display.display();
 }
 
-bool ssd1306_is_ready()
-{
-    return isInitialized;
-}
+bool ssd1306_is_ready() { return isInitialized; }

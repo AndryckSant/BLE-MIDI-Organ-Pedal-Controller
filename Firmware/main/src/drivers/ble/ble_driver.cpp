@@ -19,58 +19,59 @@
 
 #include "ble_driver.h"
 
-#include <BLEMidi.h>
 #include <Arduino.h>
+#include <BLEMidi.h>
 
 namespace {
-    //=========================================================================
-    // Private Constants
-    //=========================================================================
-    
-    /// BLE device advertised name.
-    constexpr char kBleName[] = "BLE MIDI Controller";
+//=========================================================================
+// Private Constants
+//=========================================================================
 
-    //=========================================================================
-    // Private Types
-    //=========================================================================
+/// BLE device advertised name.
+constexpr char kBleName[] = "BLE MIDI Controller";
 
-    struct BleState
-    {
-        bool isConnected = false;
-    };
+//=========================================================================
+// Private Types
+//=========================================================================
 
-    //=========================================================================
-    // Private Variables
-    //=========================================================================
+struct BleState {
+    bool isConnected = false;
+};
 
-    BleState bleState;
+//=========================================================================
+// Private Variables
+//=========================================================================
 
-    //=============================================================================
-    // Private Functions
-    //=============================================================================
+BleState bleState;
 
-    /**
-     * @brief BLE connection callback.
-     *
-     * Invoked automatically when a BLE client establishes a connection.
-     */
-    void onConnect() {
-        bleState.isConnected = true;
-        Serial.println("BLE client connected.");
-    }
+//=============================================================================
+// Private Functions
+//=============================================================================
 
-    /**
-     * @brief BLE disconnection callback.
-     *
-     * Invoked automatically when the BLE client disconnects.
-     */
-    void onDisconnect() {
-        bleState.isConnected = false;
-        Serial.println("BLE client disconnected.");
-    }
+void onConnect();
+void onDisconnect();
 
+/**
+ * @brief BLE connection callback.
+ *
+ * Invoked automatically when a BLE client establishes a connection.
+ */
+void onConnect() {
+    bleState.isConnected = true;
+    Serial.println("BLE client connected.");
 }
 
+/**
+ * @brief BLE disconnection callback.
+ *
+ * Invoked automatically when the BLE client disconnects.
+ */
+void onDisconnect() {
+    bleState.isConnected = false;
+    Serial.println("BLE client disconnected.");
+}
+
+} // namespace
 
 //=============================================================================
 // Public Functions
@@ -85,24 +86,19 @@ void ble_init() {
 #ifdef BLE_DEBUG
     BLEMidiServer.enableDebugging();
 #endif
-
 }
 
-void ble_deinit()
-{
+void ble_deinit() {
     BLEMidiServer.end();
     bleState.isConnected = false;
 }
 
-bool ble_is_connected() {
-    return bleState.isConnected;
-}
+bool ble_is_connected() { return bleState.isConnected; }
 
 void ble_send_control_change(uint8_t channel, uint8_t cc, uint8_t value) {
-    if(!bleState.isConnected){
+    if (!bleState.isConnected) {
         return;
     }
 
     BLEMidiServer.controlChange(channel, cc, value);
 }
-

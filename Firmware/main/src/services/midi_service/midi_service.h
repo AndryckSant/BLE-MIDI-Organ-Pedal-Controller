@@ -34,9 +34,7 @@ void midi_deinit();
  * @param cc MIDI Control Change number.
  * @param value MIDI value (0-127).
  */
-void midi_send_control_change(uint8_t channel,
-                              uint8_t cc,
-                              uint8_t value);
+void midi_send_control_change(uint8_t channel, uint8_t cc, uint8_t value);
 
 /**
  * @brief Sends a MIDI message.

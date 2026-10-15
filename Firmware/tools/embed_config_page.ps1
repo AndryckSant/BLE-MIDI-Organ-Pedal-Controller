@@ -1,3 +1,8 @@
+<#
+.SYNOPSIS
+Embeds the configuration page HTML in the firmware header.
+#>
+
 $ErrorActionPreference = "Stop"
 
 $pagePath = Join-Path $PSScriptRoot "..\main\src\core\states\config_page.html"
@@ -10,6 +15,11 @@ if ($page.Contains(")$delimiter`"")) {
 }
 
 $header = @"
+/**
+ * @file config_page.h
+ * @brief Generated firmware-embedded configuration portal page.
+ */
+
 #pragma once
 #include <Arduino.h>
 

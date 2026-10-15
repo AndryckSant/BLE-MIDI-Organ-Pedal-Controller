@@ -32,7 +32,7 @@ constexpr uint8_t kMaxButtons = 8;
  */
 
 struct SystemConfig {
-    PedalModel pedals[kMaxPedals]; // Configuration for Pedal 1 and Pedal 2
+    PedalModel pedals[kMaxPedals];    // Configuration for Pedal 1 and Pedal 2
     ButtonModel buttons[kMaxButtons]; // Configuration for up to 8 buttons
 };
 

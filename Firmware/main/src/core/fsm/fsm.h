@@ -1,3 +1,8 @@
+/**
+ * @file fsm.h
+ * @brief Finite state machine types and public interface.
+ */
+
 #ifndef FSM_H
 #define FSM_H
 
@@ -6,17 +11,17 @@
 #include "../events/event_queue.h"
 
 enum class FsmState : uint8_t {
-	Boot = 0,
-	BleDisconnected,
-	BleConnected,
-	ReadAndSend,
-	Config,
-	Error,
+    Boot = 0,
+    BleDisconnected,
+    BleConnected,
+    ReadAndSend,
+    Config,
+    Error,
 };
 
 struct FsmContext {
-	FsmState state;
-	EventQueue queue;
+    FsmState state;
+    EventQueue queue;
 };
 
 void fsm_init(FsmContext &context);

@@ -31,7 +31,7 @@ void calibration_init(CalibrationData *calibration);
  * @param calibration Pointer to calibration data.
  * @param value Current filtered ADC value.
  */
-void calibration_update(CalibrationData* calibration, int16_t value);
+void calibration_update(CalibrationData *calibration, int16_t value);
 
 /**
  * @brief Resets calibration data.

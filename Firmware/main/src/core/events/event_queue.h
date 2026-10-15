@@ -1,3 +1,8 @@
+/**
+ * @file event_queue.h
+ * @brief FSM event types and fixed-capacity queue interface.
+ */
+
 #ifndef EVENT_QUEUE_H
 #define EVENT_QUEUE_H
 
@@ -5,23 +10,23 @@
 #include <stdint.h>
 
 enum class FsmEvent : uint8_t {
-	None = 0,
-	BootOk,
-	BootFail,
-	BleConnected,
-	BleDisconnected,
-	StartStream,
-	StopStream,
-	EnterConfig,
-	ExitConfig,
-	RuntimeFault,
+    None = 0,
+    BootOk,
+    BootFail,
+    BleConnected,
+    BleDisconnected,
+    StartStream,
+    StopStream,
+    EnterConfig,
+    ExitConfig,
+    RuntimeFault,
 };
 
 struct EventQueue {
-	FsmEvent items[8];
-	uint8_t head;
-	uint8_t tail;
-	uint8_t count;
+    FsmEvent items[8];
+    uint8_t head;
+    uint8_t tail;
+    uint8_t count;
 };
 
 void event_queue_init(EventQueue &queue);

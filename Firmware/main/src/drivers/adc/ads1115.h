@@ -23,13 +23,7 @@
 /**
  * @brief ADS1115 initialization status.
  */
-typedef enum
-{
-    ADS1115_OK = 0,
-    ADS1115_ERROR
-
-} ADS1115_Status_t;
-
+enum class Ads1115Status { kOk = 0, kError };
 
 /**
  * @brief Initializes the ADS1115 ADC.
@@ -38,12 +32,10 @@ typedef enum
  * the ADC for operation.
  *
  * @return
- * ADS1115_OK    Initialization successful.
- * ADS1115_ERROR Initialization failed.
+ * Ads1115Status::kOk    Initialization successful.
+ * Ads1115Status::kError Initialization failed.
  */
-ADS1115_Status_t ads1115_init(void);
-
-
+Ads1115Status ads1115_init(void);
 
 /**
  * @brief Reads a single-ended ADC channel.
@@ -55,8 +47,6 @@ ADS1115_Status_t ads1115_init(void);
  * Signed 16-bit raw ADC conversion value.
  */
 int16_t ads1115_read_channel(uint8_t channel);
-
-
 
 /**
  * @brief Reads voltage from an ADC channel.

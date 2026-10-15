@@ -1,3 +1,8 @@
+/**
+ * @file config_page.h
+ * @brief Generated firmware-embedded configuration portal page.
+ */
+
 #pragma once
 #include <Arduino.h>
 

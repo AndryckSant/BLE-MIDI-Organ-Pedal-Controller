@@ -44,8 +44,7 @@ void display_show_config(const char *message);
  * @param pedal Pedal index.
  * @param value MIDI value (0-127).
  */
-void display_show_pedal(uint8_t pedal,
-                        uint8_t value);
+void display_show_pedal(uint8_t pedal, uint8_t value);
 
 /**
  * @brief Displays an error message.

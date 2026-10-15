@@ -17,8 +17,7 @@
 /**
  * @brief MIDI message type.
  */
-enum class MidiType
-{
+enum class MidiType {
     ControlChange,
     Note,
     ProgramChange,
@@ -27,7 +26,7 @@ enum class MidiType
 /**
  * @brief Represents a MIDI message.
  */
-struct MidiMessage{
+struct MidiMessage {
     MidiType type;
     uint8_t channel; // MIDI channel (0-15)
     uint8_t number;  // Control Change number, Note number, or Program Change number
