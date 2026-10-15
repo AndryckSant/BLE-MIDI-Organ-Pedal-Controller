@@ -1,84 +1,86 @@
-# BLE-MIDI-Organ-Pedal-Controller
+# BLE MIDI Organ Pedal Controller
 
-Modular BLE MIDI firmware for ESP32-based expression pedals. The project is being organized around drivers, models, services, an application layer and a future FSM so the code stays maintainable as features grow.
+Firmware for an ESP32-based expression-pedal controller that sends MIDI Control Change messages over BLE MIDI. The firmware is organized into application, FSM, service, model, and driver layers.
 
 Firmware version: **1.2.0**
 
-Current state
-- The sketch entry point in `Firmware/main/main.ino` is now a thin wrapper that calls `app_init()` and `app_run()`.
-- Application orchestration lives in `Firmware/app/app.cpp`.
-- ADS1115 access is isolated in `Firmware/drivers/adc/ads1115.cpp`.
-- Pedal processing logic is isolated in `Firmware/services/input/pedal/pedal_service.cpp`.
-- `Firmware/models/pedal_model.h` stores pedal state and MIDI output data.
-- The FSM now has a minimal event queue and state dispatch path.
-- The `config` state brings up a WiFi AP and web UI to edit pedal and button parameters.
+## Features
 
-Key features implemented
-- ADS1115 reading behind a driver API.
-- Pedal smoothing, adaptive calibration and MIDI mapping in a service.
-- `PedalModel`-based state for the pedal slice.
-- BLE MIDI control change output guarded by connection state.
-- OLED status display handled by the application layer.
-- Arduino IDE compatibility preserved through sketch-local wrapper translation units.
-- WiFi AP configuration portal with save and factory reset actions.
-- Editable MIDI parameters for 2 pedals and 8 buttons.
-- Each button supports momentary or latch behavior. Latch is the default: each press toggles its MIDI CC between 127 and 0, and release sends nothing. Momentary mode sends 127 on press and 0 on release.
-- Pedal calibration fields and per-pedal adaptive auto-range settings exposed in the configuration UI.
+- BLE MIDI output for two expression pedals and up to eight physical buttons.
+- ADS1115 input sampling, pedal smoothing, calibration, normalization, and MIDI mapping.
+- Per-pedal adaptive auto-range or manually configured calibration limits.
+- Configurable button input polarity and momentary or latch MIDI behavior.
+- OLED status display and a Wi-Fi access-point configuration portal.
+- System configuration persisted in ESP32 non-volatile storage (NVS), including migration from earlier configuration formats.
 
-Hardware
-- BLE-capable microcontroller (ESP32 recommended).
-- Expression pedal wired to ADS1115 channel A1.
-- OLED SSD1306 on I2C.
-- ESP32 I2C pins currently configured as SDA 21 and SCL 22.
+## Hardware
 
-Example wiring
-- Pedal output -> ADS1115 A1
-- Pedal GND -> GND
-- Pedal VCC -> 3.3V
-- Configuration button: GPIO15 (D15), with an external pull-down resistor.
-- MIDI buttons 1-8 use GPIO13, GPIO12, GPIO14, GPIO27, GPIO26, GPIO25, GPIO33 and GPIO32, respectively. Button inputs require external pull-down resistors.
+- ESP32 with BLE support.
+- ADS1115 I2C analog-to-digital converter (default address `0x48`).
+- SSD1306 I2C OLED display (default address `0x3C`).
+- Up to two expression pedals and eight MIDI buttons.
 
-Configuration mode
-- Press the configuration button connected to D15, or send `c`/`C` through Serial.
-- The configuration button uses a 40 ms debounce window. BLE MIDI is stopped while the Wi-Fi configuration portal is active and restarted if the portal is exited with `x`/`X`. Saving or restoring factory defaults restarts the device.
-- Each enabled MIDI button uses a 40 ms digital debounce window. Its momentary/latch behavior, MIDI channel and CC are configurable in the portal.
-- If the configuration AP fails to start, the OLED displays an error for five seconds before the device restarts.
+### Default pin assignments
 
-Pedal calibration
-- Each pedal has configurable minimum/maximum calibration values and an independent auto-range option.
-- With auto-range enabled, calibration limits adapt to new pedal extremes. With it disabled, the configured limits remain fixed; minimum must be lower than maximum.
+| Function | ESP32 pin / input |
+| --- | --- |
+| I2C SDA | GPIO 21 |
+| I2C SCL | GPIO 22 |
+| Configuration button | GPIO 15 |
+| Status LED | GPIO 2 |
+| MIDI buttons 1-8 | GPIO 13, 12, 14, 27, 26, 25, 33, 32 |
+| Pedal inputs | ADS1115 channels A0 and A1 by default |
 
-Important code/configuration (see main/main.ino)
-- Entry point: `Firmware/main/main.ino`
-- App orchestration: `Firmware/app/app.cpp`
-- ADS1115 driver: `Firmware/drivers/adc/ads1115.cpp`
-- Pedal service: `Firmware/services/input/pedal/pedal_service.cpp`
-- Pedal model: `Firmware/models/pedal_model.h`
-- MIDI CC: `11`
-- MIDI channel: `1`
-- BLE device name: `BLE MIDI Controller`
-- Serial baud: `115200`
-- Sample interval: `5 ms`
+Connect the buttons with external pull-down resistors. The dedicated configuration button is also read as a digital input. Connect each pedal output to its assigned ADS1115 input and share ground; use a supply voltage appropriate for the pedal and board.
 
-Usage
-1. Open `Firmware/main/main.ino` in Arduino IDE.
-2. Compile and upload to the board.
-3. Open Serial Monitor at 115200 for debug output.
-4. Pair and connect the BLE MIDI device (named `BLE MIDI Controller`) from your host and route CC 11 as desired.
+## Configuration portal
 
-Notes & future improvements
-- The FSM should keep taking ownership of state transitions and runtime decisions.
-- Consider moving BLE, display and event coordination further out of `app.cpp` once the FSM grows.
-- Calibration constants and MIDI routing are now configurable, but validation and richer UX can still improve.
+Enter configuration mode by pressing the button on GPIO 15 or sending `c`/`C` through Serial at **115200 baud**. BLE MIDI is stopped while the portal is active.
 
-Repository layout
-- Firmware/main/main.ino — thin sketch entry point
-- Firmware/app/ — application orchestration
-- Firmware/core/ — FSM, events and states
-- Firmware/drivers/ — hardware access layers
-- Firmware/services/ — algorithmic services
-- Firmware/models/ — domain data structures
-- README.md — this file
+The ESP32 starts an open Wi-Fi access point named **BLE MIDI Controller Setup**. Connect to it and open the IP address shown on the OLED and in the Serial output. The portal lets you configure:
 
-License
-- No license file included; add one if you plan to publish.
+- Each pedal's enabled state, ADS1115 channel, MIDI channel, MIDI CC, calibration minimum/maximum, and auto-range setting.
+- Each button's enabled state, GPIO, input polarity, MIDI channel, MIDI CC, and behavior.
+- MIDI channels from 1 to 16 and Control Change numbers from 0 to 127.
+
+Button behavior:
+
+- **Momentary:** sends value 127 when pressed and 0 when released.
+- **Latch:** alternates between 127 and 0 on successive presses; release sends nothing. This is the default.
+
+Each button input has a 40 ms debounce interval. Use the assigned MIDI-button GPIOs (13, 12, 14, 27, 26, 25, 33, or 32); GPIO 15 is reserved for configuration mode.
+
+Saving settings or restoring factory defaults persists the configuration to NVS and restarts the device. Sending `x`/`X` exits the portal without saving and returns to normal BLE MIDI operation. If the access point cannot start, the OLED displays an error for five seconds before the device restarts.
+
+Factory defaults enable both pedals on ADS1115 channels A0 and A1, MIDI channel 1, with CC 11 and CC 7 respectively. Adaptive auto-range is enabled. All eight buttons default to disabled, use the GPIO assignments above, and have MIDI channel 1, CCs 20-27, and latch behavior.
+
+## Pedal calibration
+
+Auto-range is enabled by default and adapts the calibration range as new pedal extremes are detected. Disable auto-range to use fixed minimum and maximum values configured in the portal. For a useful fixed calibration, set the minimum below the maximum and exercise the pedal across its intended range.
+
+## Build and upload
+
+1. Install the ESP32 board support and the Arduino libraries required by the source, including Adafruit ADS1X15, Adafruit GFX, Adafruit SSD1306, and the BLE MIDI library.
+2. Open `Firmware/main/main.ino` in the Arduino IDE, select the target ESP32 board and port, then compile and upload.
+3. Open Serial Monitor at **115200 baud** for startup messages and configuration-mode IP details.
+4. Pair the BLE MIDI device named **BLE MIDI Controller** with the host and connect to receive MIDI CC messages.
+
+The web-page source is `Firmware/main/src/core/states/config_page.html`; its firmware-embedded header is `Firmware/main/src/core/states/config_page.h`. After editing the HTML, regenerate the header by running `.\Firmware\tools\embed_config_page.ps1` from the repository root.
+
+## Architecture
+
+- `Firmware/main/main.ino` — Arduino `setup()`/`loop()` wrapper.
+- `Firmware/main/src/app/` — application initialization, coordination, and runtime processing.
+- `Firmware/main/src/core/` — FSM, event queue, and application states, including BLE, streaming, and configuration.
+- `Firmware/main/src/drivers/` — ADS1115, BLE, OLED, and NVS hardware access.
+- `Firmware/main/src/models/` — pedal, button, calibration, MIDI, and system configuration data.
+- `Firmware/main/src/services/` — configuration persistence, input processing, calibration, display, and MIDI services.
+- `Firmware/tools/` — utility for embedding the configuration page in the firmware.
+- `Hardware/` — KiCad board design and related hardware files.
+- `Docs/` — architecture and configuration-portal notes.
+
+## License
+
+- Firmware and original software in `Firmware/` are licensed under the [MIT License](Firmware/LICENSE).
+- Hardware design files in `Hardware/` are licensed under [CERN-OHL-S-2.0](Hardware/LICENSE) (Strongly Reciprocal).
+- These licenses apply to the original project work in their respective directories. Third-party libraries and other third-party materials remain under their own licenses; see their respective sources for terms.
