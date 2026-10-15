@@ -64,6 +64,12 @@ void midi_init()
     initialized = true;
 }
 
+void midi_deinit()
+{
+    ble_deinit();
+    initialized = false;
+}
+
 void midi_send_control_change(uint8_t channel,
                               uint8_t cc,
                               uint8_t value)

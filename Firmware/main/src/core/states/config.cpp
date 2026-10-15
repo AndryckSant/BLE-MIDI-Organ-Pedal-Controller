@@ -19,6 +19,8 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "../../board_pins.h"
+#include "config_page.h"
 #include "../../models/system_config.h"
 #include "../../services/config_service/config_service.h"
 
@@ -32,7 +34,7 @@ namespace
 constexpr char kApSsid[] = "BLE MIDI Controller Setup";
 
 constexpr uint8_t kPedalCount = 2U;
-constexpr uint8_t kButtonCount = 8U;
+constexpr uint8_t kButtonCount = BoardPins::kMidiButtonCount;
 
 constexpr uint8_t kAdcChannelMinimum = 0U;
 constexpr uint8_t kAdcChannelMaximum = 3U;
@@ -45,89 +47,6 @@ constexpr uint8_t kMidiCcMaximum = 127U;
 
 constexpr uint8_t kGpioMinimum = 0U;
 constexpr uint8_t kGpioMaximum = 39U;
-
-//=============================================================================
-// Private HTML
-//=============================================================================
-
-constexpr char kHtmlHeader[] =
-"<!doctype html>"
-"<html>"
-"<head>"
-"<meta charset='utf-8'>"
-"<meta name='viewport' content='width=device-width,initial-scale=1'>"
-"<title>BLE MIDI Controller</title>"
-"<style>"
-"*{box-sizing:border-box}"
-"body{font-family:Arial,sans-serif;background:#eef1f3;color:#17212b;"
-"margin:0;line-height:1.45}"
-"header{background:#172b3a;color:#fff;padding:28px 20px;"
-"border-bottom:4px solid #e3a93b}"
-"header .header-inner{max-width:1100px;margin:0 auto}"
-"main{max-width:1100px;margin:0 auto;padding:20px 16px 96px}"
-"section{background:#fff;border:1px solid #d6dde2;border-radius:8px;"
-"padding:20px;margin-bottom:18px;box-shadow:0 3px 12px rgba(23,43,58,.06)}"
-"h1,h2,h3{margin:0 0 8px 0;line-height:1.2}"
-"h1{font-size:clamp(24px,4vw,34px)}h2{font-size:21px;color:#172b3a}"
-".subtitle{color:#d9e4eb;margin:0}"
-".section-heading{display:flex;justify-content:space-between;gap:16px;"
-"align-items:flex-start;margin-bottom:16px}.section-heading p{margin:0;"
-"color:#61717c;font-size:13px}.status-grid{display:grid;"
-"grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}"
-".status-item{background:#f6f8f9;border-left:3px solid #e3a93b;"
-"padding:11px 13px}.status-item strong{display:block;font-size:12px;"
-"text-transform:uppercase;letter-spacing:.04em;color:#61717c}"
-".status-item span{display:block;margin-top:2px;font-weight:700}"
-"label{display:block;font-size:13px;font-weight:700;margin:0 0 5px}"
-".field-help{display:block;color:#71808a;font-size:11px;font-weight:400;"
-"margin-top:3px}input{width:100%;padding:10px;border:1px solid #bdc8cf;"
-"border-radius:5px;font:inherit;color:#17212b;background:#fff}"
-"input:focus{outline:3px solid rgba(227,169,59,.3);border-color:#bd7f12}"
-"fieldset{border:1px solid #dce2e6;border-radius:6px;margin:0 0 14px;"
-"padding:15px}legend{padding:0 8px;font-weight:700;color:#2e5369}"
-".device{border:1px solid #dce2e6;border-radius:6px;margin:0 0 14px;"
-"padding:0;overflow:hidden}.device:last-child{margin-bottom:0}"
-".device-header{display:flex;justify-content:space-between;align-items:center;"
-"gap:12px;padding:13px 15px;background:#f3f6f7;border-bottom:1px solid #dce2e6}"
-".device-header strong{color:#2e5369}.device-header label{margin:0}"
-".device-body{padding:15px}.field-group{border-left:3px solid #d9e3e7;"
-"padding-left:12px;margin-bottom:16px}.field-group:last-child{margin-bottom:0}"
-".field-group h3{color:#61717c;font-size:12px;text-transform:uppercase;"
-"letter-spacing:.05em;margin-bottom:10px}.grid{display:grid;"
-"grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:14px}"
-".check{display:flex;align-items:center;gap:8px;min-height:42px}"
-".check input{width:auto;accent-color:#2e718b}.check label{margin:0}"
-".actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}"
-"button{border:0;border-radius:5px;padding:12px 18px;"
-"font:700 14px Arial,sans-serif;cursor:pointer;transition:filter .15s}"
-"button:hover{filter:brightness(1.08)}button:focus{outline:3px solid "
-"rgba(227,169,59,.45);outline-offset:2px}button.primary{background:#1f647d;"
-"color:#fff}button.secondary{background:#a9362b;color:#fff}"
-".action-bar{position:sticky;bottom:12px;z-index:2;display:flex;"
-"justify-content:space-between;gap:12px;align-items:center;background:#172b3a;"
-"color:#fff;padding:12px 14px;border-radius:6px;box-shadow:0 4px 18px "
-"rgba(23,43,58,.25)}.action-bar .small{color:#d9e4eb}"
-".note{background:#f8f4e8;border:1px solid #ead8a5;border-radius:6px;"
-"padding:14px;margin-bottom:18px}.small{font-size:12px;color:#61717c}"
-"@media(max-width:520px){main{padding:12px 10px 88px}section{padding:15px}"
-".section-heading{display:block}.section-heading p{margin-top:5px}.action-bar{"
-"display:block}.action-bar button{width:100%}.action-bar .small{display:block;"
-"margin-top:8px;text-align:center}}"
-"</style>"
-"</head>"
-"<body>"
-"<header>"
-"<div class='header-inner'>"
-"<h1>BLE MIDI Controller</h1>"
-"<p class='subtitle'>Portal de configuração local</p>"
-"</div>"
-"</header>"
-"<main>";
-
-constexpr char kHtmlFooter[] =
-"</main>"
-"</body>"
-"</html>";
 
 //=============================================================================
 // Private Variables
@@ -147,6 +66,88 @@ String statusMessage;
 String htmlChecked(bool value)
 {
 return value ? " checked" : "";
+}
+
+String extractHtmlTemplate(
+String &html,
+const char *templateId)
+{
+const String openingTag =
+    "<template id='" + String(templateId) + "'>";
+const String closingTag =
+    "</template>";
+const int start =
+    html.indexOf(openingTag);
+
+if (start < 0)
+{
+    return String();
+}
+
+const unsigned int contentStart =
+    static_cast<unsigned int>(start) + openingTag.length();
+const int end =
+    html.indexOf(closingTag, contentStart);
+
+if (end < 0)
+{
+    return String();
+}
+
+const String fragment =
+    html.substring(
+        contentStart,
+        static_cast<unsigned int>(end));
+const unsigned int removalLength =
+    static_cast<unsigned int>(end) -
+    static_cast<unsigned int>(start) +
+    closingTag.length();
+
+html.remove(
+    static_cast<unsigned int>(start),
+    removalLength);
+
+return fragment;
+}
+
+String renderPedalCard(
+const String &cardTemplate,
+uint8_t index,
+const PedalModel &pedal)
+{
+String card = cardTemplate;
+card.replace("{{INDEX}}", String(index));
+card.replace("{{NUMBER}}", String(index + 1U));
+card.replace("{{ENABLED}}", htmlChecked(pedal.enabled));
+card.replace("{{ADC}}", String(pedal.adc_channel));
+card.replace("{{MIDI_CHANNEL}}", String(pedal.midi_channel));
+card.replace("{{MIDI_CC}}", String(pedal.midi_cc));
+card.replace("{{CAL_MIN}}", String(pedal.calibration.minimum, 1));
+card.replace("{{CAL_MAX}}", String(pedal.calibration.maximum, 1));
+card.replace("{{AUTO_RANGE}}", htmlChecked(pedal.calibration.auto_range));
+return card;
+}
+
+String renderButtonCard(
+const String &cardTemplate,
+uint8_t index,
+const ButtonModel &button)
+{
+String card = cardTemplate;
+card.replace("{{INDEX}}", String(index));
+card.replace("{{NUMBER}}", String(index + 1U));
+card.replace("{{ENABLED}}", htmlChecked(button.enabled));
+card.replace("{{GPIO}}", String(button.gpio_pin));
+card.replace("{{INVERTED}}", htmlChecked(button.inverted));
+card.replace("{{MIDI_CHANNEL}}", String(button.midi_channel));
+card.replace("{{MIDI_CC}}", String(button.midi_cc));
+card.replace(
+    "{{MODE_MOMENTARY}}",
+    button.latch ? "" : " selected");
+card.replace(
+    "{{MODE_LATCH}}",
+    button.latch ? " selected" : "");
+return card;
 }
 
 int parseIntOrDefault(
@@ -211,243 +212,81 @@ return value.toFloat();
 // Page Generation
 //=============================================================================
 
-String buildPage()
+bool buildPage(String &html)
 {
 const SystemConfig &config =
-*config_service_get();
+    *config_service_get();
 
-
-String html;
-
+html = String(FPSTR(kConfigurationPageTemplate));
 html.reserve(20000);
 
-html += kHtmlHeader;
+const String pedalTemplate =
+    extractHtmlTemplate(html, "pedal-card");
+const String buttonTemplate =
+    extractHtmlTemplate(html, "button-card");
 
-html += "<section class='note'>";
-html += "<div class='status-grid'>";
-html += "<div class='status-item'><strong>Rede Wi-Fi</strong><span>";
-html += kApSsid;
-html += "</span></div>";
-html += "<div class='status-item'><strong>Endereço</strong><span>";
-html += WiFi.softAPIP().toString();
-html += "</span></div>";
-html += "<div class='status-item'><strong>Status</strong><span>";
-html += statusMessage.length() > 0U ? statusMessage : "Pronto para configurar";
-html += "</span></div></div>";
-html += "</section>";
+if (pedalTemplate.length() == 0U ||
+    buttonTemplate.length() == 0U)
+{
+    return false;
+}
 
-//=========================================================================
-// Pedals
-//=========================================================================
-
-html += "<form method='post' action='/save'>";
-
-html += "<section>";
-html += "<div class='section-heading'><div><h2>Pedais</h2>";
-html += "<p>Mapeie as entradas analogicas e a mensagem MIDI de cada pedal.</p>";
-html += "</div></div>";
+String pedalCards;
+pedalCards.reserve(3000);
 
 for (uint8_t index = 0U;
      index < kPedalCount;
      ++index)
 {
-    const PedalModel &pedal =
-        config.pedals[index];
-
-    html += "<fieldset class='device'>";
-
-    html += "<div class='device-header'><strong>Pedal ";
-    html += String(index + 1U);
-    html += "</strong><label class='check'>";
-    html += "<input type='checkbox' name='pedal";
-    html += String(index);
-    html += "_enabled'";
-    html += htmlChecked(pedal.enabled);
-    html += "> Ativado</label></div>";
-
-    html += "<div class='device-body'>";
-
-    html += "<div class='field-group'><h3>Entrada analogica</h3>";
-
-    html += "<div class='grid'>";
-
-    html += "<div>";
-    html += "<label>Canal ADS<span class='field-help'>Entrada do conversor analogico</span></label>";
-    html += "<input type='number' min='0' max='3' name='pedal";
-    html += String(index);
-    html += "_adc' value='";
-    html += String(pedal.adc_channel);
-    html += "'>";
-    html += "</div>";
-
-    html += "</div></div>";
-
-    html += "<div class='field-group'><h3>Mensagem MIDI</h3>";
-    html += "<div class='grid'>";
-
-    html += "<div>";
-    html += "<label>Canal MIDI<span class='field-help'>Valores de 1 a 16</span></label>";
-    html += "<input type='number' min='1' max='16' name='pedal";
-    html += String(index);
-    html += "_midi_channel' value='";
-    html += String(pedal.midi_channel);
-    html += "'>";
-    html += "</div>";
-
-    html += "<div>";
-    html += "<label>CC MIDI<span class='field-help'>Control Change, de 0 a 127</span></label>";
-    html += "<input type='number' min='0' max='127' name='pedal";
-    html += String(index);
-    html += "_midi_cc' value='";
-    html += String(pedal.midi_cc);
-    html += "'>";
-    html += "</div>";
-
-    html += "</div></div>";
-
-    html += "<div class='field-group'><h3>Calibracao</h3>";
-    html += "<div class='grid'>";
-
-    html += "<div>";
-    html += "<label>Calibração mín.</label>";
-    html += "<input type='number' step='0.1' min='0' max='32767' name='pedal";
-    html += String(index);
-    html += "_cal_min' value='";
-    html += String(pedal.calibration.minimum, 1);
-    html += "'>";
-    html += "</div>";
-
-    html += "<div>";
-    html += "<label>Calibração máx.</label>";
-    html += "<input type='number' step='0.1' min='0' max='32767' name='pedal";
-    html += String(index);
-    html += "_cal_max' value='";
-    html += String(pedal.calibration.maximum, 1);
-    html += "'>";
-    html += "</div>";
-
-    html += "</div>";
-    html += "</div></div></fieldset>";
+    pedalCards += renderPedalCard(
+        pedalTemplate,
+        index,
+        config.pedals[index]);
 }
 
-html += "</section>";
-
-//=========================================================================
-// Buttons
-//=========================================================================
-
-html += "<section>";
-html += "<div class='section-heading'><div><h2>Botões</h2>";
-html += "<p>Configure os pinos digitais e os comandos enviados ao dispositivo MIDI.</p>";
-html += "</div></div>";
+String buttonCards;
+buttonCards.reserve(8000);
 
 for (uint8_t index = 0U;
      index < kButtonCount;
      ++index)
 {
-    const ButtonModel &button =
-        config.buttons[index];
-
-    html += "<fieldset class='device'>";
-
-    html += "<div class='device-header'><strong>Botão ";
-    html += String(index + 1U);
-    html += "</strong><label class='check'>";
-    html += "<input type='checkbox' name='button";
-    html += String(index);
-    html += "_enabled'";
-    html += htmlChecked(button.enabled);
-    html += "> Ativado</label></div>";
-
-    html += "<div class='device-body'>";
-
-    html += "<div class='field-group'><h3>Entrada digital</h3>";
-
-    html += "<div class='grid'>";
-
-    html += "<div>";
-    html += "<label>GPIO<span class='field-help'>Pino digital do ESP32</span></label>";
-    html += "<input type='number' min='0' max='39' name='button";
-    html += String(index);
-    html += "_gpio' value='";
-    html += String(button.gpio_pin);
-    html += "'>";
-    html += "</div>";
-
-    html += "<div>";
-    html += "<label>";
-    html += "<input type='checkbox' name='button";
-    html += String(index);
-    html += "_inverted'";
-    html += htmlChecked(button.inverted);
-    html += "> Lógica invertida";
-    html += "</label>";
-    html += "</div>";
-
-    html += "</div></div>";
-
-    html += "<div class='field-group'><h3>Mensagem MIDI</h3>";
-    html += "<div class='grid'>";
-
-    html += "<div>";
-    html += "<label>Canal MIDI<span class='field-help'>Valores de 1 a 16</span></label>";
-    html += "<input type='number' min='1' max='16' name='button";
-    html += String(index);
-    html += "_midi_channel' value='";
-    html += String(button.midi_channel);
-    html += "'>";
-    html += "</div>";
-
-    html += "<div>";
-    html += "<label>CC MIDI<span class='field-help'>Control Change, de 0 a 127</span></label>";
-    html += "<input type='number' min='0' max='127' name='button";
-    html += String(index);
-    html += "_midi_cc' value='";
-    html += String(button.midi_cc);
-    html += "'>";
-    html += "</div>";
-
-    html += "</div>";
-    html += "</div></div></fieldset>";
+    buttonCards += renderButtonCard(
+        buttonTemplate,
+        index,
+        config.buttons[index]);
 }
 
-html += "</section>";
+html.replace("{{WIFI_SSID}}", kApSsid);
+html.replace("{{AP_IP}}", WiFi.softAPIP().toString());
+html.replace(
+    "{{STATUS}}",
+    statusMessage.length() > 0U
+        ? statusMessage
+        : "Pronto para configurar");
+html.replace("{{PEDAL_CARDS}}", pedalCards);
+html.replace("{{BUTTON_CARDS}}", buttonCards);
 
-//=========================================================================
-// Actions
-//=========================================================================
+return true;
+}
 
-html += "<div class='action-bar'>";
-html += "<span class='small'>As alterações entram em vigor após salvar.</span>";
+void sendConfigurationPage(int statusCode)
+{
+String html;
 
-html += "<button class='primary' type='submit'>";
-html += "Salvar configurações";
-html += "</button>";
+if (!buildPage(html))
+{
+    server.send(
+        500,
+        "text/plain; charset=utf-8",
+        "Failed to load configuration page template.");
+    return;
+}
 
-html += "</div>";
-
-html += "</form>";
-
-html += "<form method='post' action='/factory'>";
-
-html += "<section>";
-html += "<div class='actions'>";
-
-html += "<button class='secondary' type='submit' "
-    "onclick=\"return confirm('Restaurar todas as configurações de fábrica?')\">";
-html += "Restaurar padrão de fábrica";
-html += "</button>";
-
-html += "</div>";
-html += "</section>";
-
-html += "</form>";
-
-html += kHtmlFooter;
-
-return html;
-
-
+server.send(
+    statusCode,
+    "text/html; charset=utf-8",
+    html);
 }
 
 //=============================================================================
@@ -512,6 +351,10 @@ for (uint8_t index = 0U;
         parseFloatOrDefault(
             server.arg(prefix + "cal_max"),
             pedal.calibration.maximum);
+
+    pedal.calibration.auto_range =
+        parseBool(
+            server.arg(prefix + "auto_range"));
 
     if (pedal.calibration.minimum < 0.0f)
     {
@@ -585,6 +428,16 @@ for (uint8_t index = 0U;
                 button.midi_cc),
             kMidiCcMinimum,
             kMidiCcMaximum);
+
+    const String mode = server.arg(prefix + "mode");
+    if (mode == "momentary")
+    {
+        button.latch = false;
+    }
+    else if (mode == "latch")
+    {
+        button.latch = true;
+    }
 }
 
 
@@ -596,10 +449,7 @@ for (uint8_t index = 0U;
 
 void handleRoot()
 {
-server.send(
-200,
-"text/html; charset=utf-8",
-buildPage());
+sendConfigurationPage(200);
 }
 
 void handleSave()
@@ -612,10 +462,7 @@ if (config_service_save())
     statusMessage =
         "Configurações salvas com sucesso.";
 
-    server.send(
-        200,
-        "text/html; charset=utf-8",
-        buildPage());
+    sendConfigurationPage(200);
 
     exitRequested = true;
 }
@@ -624,10 +471,7 @@ else
     statusMessage =
         "Erro ao salvar configurações.";
 
-    server.send(
-        500,
-        "text/html; charset=utf-8",
-        buildPage());
+    sendConfigurationPage(500);
 }
 
 
@@ -641,10 +485,7 @@ statusMessage =
 "Padrão de fábrica restaurado.";
 
 
-    server.send(
-        200,
-        "text/html; charset=utf-8",
-        buildPage());
+    sendConfigurationPage(200);
 
     exitRequested = true;
 }
@@ -653,10 +494,7 @@ else
     statusMessage =
         "Erro ao restaurar configuração.";
 
-    server.send(
-        500,
-        "text/html; charset=utf-8",
-        buildPage());
+    sendConfigurationPage(500);
 }
 
 
@@ -695,8 +533,17 @@ if (!WiFi.softAP(kApSsid))
     actions.log_message(
         "Failed to start configuration AP.");
 
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_OFF);
     active = false;
 
+    if (actions.display_show_error != nullptr)
+    {
+        actions.display_show_error("AP failed");
+    }
+
+    delay(5000UL);
+    ESP.restart();
     return;
 }
 

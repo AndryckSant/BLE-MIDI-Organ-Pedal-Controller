@@ -39,6 +39,15 @@ bool nvs_init();
 bool nvs_read_blob(const char *key, void *data, size_t length);
 
 /**
+ * @brief Returns the size of a stored binary data block.
+ *
+ * @param key Storage key.
+ *
+ * @return Blob size in bytes, or 0 if the key is unavailable.
+ */
+size_t nvs_get_blob_length(const char *key);
+
+/**
  * @brief Writes a binary data block to NVS.
  *
  * @param key Storage key.

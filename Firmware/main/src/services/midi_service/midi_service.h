@@ -23,6 +23,11 @@
 void midi_init();
 
 /**
+ * @brief Stops the MIDI transport.
+ */
+void midi_deinit();
+
+/**
  * @brief Sends a MIDI Control Change message.
  *
  * @param channel MIDI channel (1-16).

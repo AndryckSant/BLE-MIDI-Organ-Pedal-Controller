@@ -72,6 +72,14 @@ bool nvs_read_blob(const char *key, void *data, size_t length) {
 	return preferences.getBytes(key, data, length) == length;
 }
 
+size_t nvs_get_blob_length(const char *key) {
+	if (!ensureOpen()) {
+		return 0U;
+	}
+
+	return preferences.getBytesLength(key);
+}
+
 bool nvs_write_blob(const char *key, const void *data, size_t length) {
 	if (!ensureOpen()) {
 		return false;

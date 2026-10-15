@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang='pt-BR'>
+<head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>BLE MIDI Controller</title>
+<style>
+*{box-sizing:border-box}
+:root{color-scheme:light;--ink:#172b3a;--muted:#60727e;--line:#dce4e8;
+--accent:#dfa333;--blue:#17627c;--surface:#fff}
+body{font-family:Arial,sans-serif;background:#f2f5f6;color:#1d2a32;
+margin:0;line-height:1.5}
+header{background:linear-gradient(120deg,#142b3a,#20465a);color:#fff;
+padding:30px 20px;border-bottom:4px solid var(--accent);
+box-shadow:0 3px 14px rgba(23,43,58,.12)}
+header .header-inner{max-width:960px;margin:0 auto}
+main{max-width:960px;margin:0 auto;padding:24px 18px 112px}
+section{background:var(--surface);border:1px solid var(--line);
+border-radius:12px;padding:22px;margin-bottom:18px;
+box-shadow:0 5px 18px rgba(23,43,58,.055)}
+h1,h2,h3{margin:0 0 8px;line-height:1.25}
+h1{font-size:clamp(25px,4vw,34px);letter-spacing:-.02em}
+h2{font-size:21px;color:var(--ink);letter-spacing:-.01em}
+.subtitle{color:#d5e3e9;margin:0;font-size:14px}
+.section-heading{display:flex;justify-content:space-between;gap:16px;
+align-items:flex-start;margin-bottom:18px;padding-bottom:14px;
+border-bottom:1px solid #edf0f2}
+.section-heading p{margin:0;color:var(--muted);font-size:13px}
+.status-grid{display:grid;grid-template-columns:repeat(auto-fit,
+minmax(min(100%,210px),1fr));gap:12px}
+.status-item{background:#fff;border:1px solid #e6e9e8;
+border-top:3px solid var(--accent);border-radius:8px;padding:12px 14px;
+min-width:0}
+.status-item strong{display:block;font-size:11px;text-transform:uppercase;
+letter-spacing:.06em;color:var(--muted)}
+.status-item span{display:block;margin-top:3px;font-weight:700;
+overflow-wrap:anywhere}
+label{display:block;font-size:13px;font-weight:700;margin:0 0 6px}
+.field-help{display:block;color:#74838b;font-size:11px;font-weight:400;
+margin-top:3px}
+input,select{width:100%;min-width:0;min-height:44px;padding:10px 12px;
+border:1px solid #c7d1d6;border-radius:7px;font:inherit;color:#1d2a32;
+background:#fff;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus{outline:3px solid rgba(223,163,51,.22);border-color:#bd7f12}
+input[type=checkbox]{width:19px;height:19px;min-height:0;padding:0;
+accent-color:var(--blue);flex:0 0 auto;cursor:pointer}
+fieldset{border:1px solid var(--line);border-radius:8px;
+margin:0 0 14px;padding:15px}
+legend{padding:0 8px;font-weight:700;color:#2e5369}
+.device{border:1px solid var(--line);border-radius:9px;
+margin:0 0 14px;padding:0;overflow:hidden;
+transition:border-color .15s,box-shadow .15s}
+.device:last-child{margin-bottom:0}
+.device:focus-within{border-color:#a8c1ca;
+box-shadow:0 0 0 2px rgba(23,98,124,.08)}
+.device-header{display:flex;justify-content:space-between;
+align-items:center;gap:12px;padding:13px 15px;
+background:#f5f8f9;border-bottom:1px solid var(--line)}
+.device-header strong{color:#244b5e}
+.device-header label{margin:0}
+.device-body{padding:16px}
+.field-group{border-left:3px solid #dce7eb;padding-left:13px;
+margin-bottom:18px}
+.field-group:last-child{margin-bottom:0}
+.field-group h3{color:#657782;font-size:11px;text-transform:uppercase;
+letter-spacing:.07em;margin-bottom:11px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,
+minmax(min(100%,190px),1fr));gap:14px}
+.check{display:flex;align-items:center;gap:9px;min-height:44px}
+.check input{width:19px}
+.check label{margin:0}
+.actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+button{min-height:46px;border:0;border-radius:7px;padding:12px 18px;
+font:700 14px Arial,sans-serif;cursor:pointer;
+transition:filter .15s,transform .15s}
+button:hover{filter:brightness(1.07)}
+button:active{transform:translateY(1px)}
+button:focus-visible{outline:3px solid rgba(223,163,51,.65);
+outline-offset:3px}
+button.primary{background:var(--blue);color:#fff}
+button.secondary{background:#a9362b;color:#fff}
+.action-bar{position:sticky;bottom:12px;z-index:2;display:flex;
+justify-content:space-between;gap:14px;align-items:center;
+background:#172b3a;color:#fff;padding:13px 15px;
+border:1px solid rgba(255,255,255,.12);border-radius:10px;
+box-shadow:0 8px 24px rgba(23,43,58,.25)}
+.action-bar .small{color:#d9e4eb}
+.note{background:#f8f4e8;border:1px solid #ead8a5;border-radius:10px;
+padding:14px;margin-bottom:18px}
+.small{font-size:12px;color:var(--muted)}
+@media(max-width:520px){
+header{padding:24px 17px}
+main{padding:14px 10px 100px}
+section{padding:16px;border-radius:10px}
+.section-heading{display:block}
+.section-heading p{margin-top:5px}
+.device-body{padding:13px}
+.action-bar{display:flex;flex-direction:column;align-items:stretch;bottom:8px}
+.action-bar button{width:100%;order:-1}
+.action-bar .small{display:block;text-align:center}
+}
+@media(prefers-reduced-motion:reduce){
+*,*::before,*::after{transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+</head>
+<body>
+<header>
+<div class='header-inner'>
+<h1>BLE MIDI Controller</h1>
+<p class='subtitle'>Portal de configuração local</p>
+</div>
+</header>
+<main>
+<section class='note' role='status' aria-live='polite'>
+<div class='status-grid'>
+<div class='status-item'><strong>Rede Wi-Fi</strong><span>{{WIFI_SSID}}</span></div>
+<div class='status-item'><strong>Endereço</strong><span>{{AP_IP}}</span></div>
+<div class='status-item'><strong>Status</strong><span>{{STATUS}}</span></div>
+</div>
+</section>
+<form method='post' action='/save'>
+<section>
+<div class='section-heading'><div><h2>Pedais</h2>
+<p>Mapeie as entradas analógicas e a mensagem MIDI de cada pedal.</p>
+</div></div>
+{{PEDAL_CARDS}}
+</section>
+<section>
+<div class='section-heading'><div><h2>Botões</h2>
+<p>Configure os pinos digitais e os comandos enviados ao dispositivo MIDI.</p>
+</div></div>
+{{BUTTON_CARDS}}
+</section>
+<div class='action-bar'>
+<span class='small'>As alterações entram em vigor após salvar.</span>
+<button class='primary' type='submit'>Salvar configurações</button>
+</div>
+</form>
+<form method='post' action='/factory'>
+<section>
+<div class='actions'>
+<button class='secondary' type='submit'
+onclick="return confirm('Restaurar todas as configurações de fábrica?')">
+Restaurar padrão de fábrica
+</button>
+</div>
+</section>
+</form>
+</main>
+<template id='pedal-card'>
+<fieldset class='device'>
+<div class='device-header'><strong>Pedal {{NUMBER}}</strong>
+<label class='check'><input type='checkbox' name='pedal{{INDEX}}_enabled'{{ENABLED}}> Ativado</label>
+</div>
+<div class='device-body'>
+<div class='field-group'><h3>Entrada analógica</h3>
+<div class='grid'><div>
+<label>Canal ADS1115<span class='field-help'>Entrada do conversor analógico</span></label>
+<input type='number' min='0' max='3' name='pedal{{INDEX}}_adc' value='{{ADC}}'>
+</div></div>
+</div>
+<div class='field-group'><h3>Mensagem MIDI</h3>
+<div class='grid'>
+<div>
+<label>Comportamento do botão<span class='field-help'>Latch alterna a cada pressão; momentâneo ativa ao pressionar e desativa ao soltar.</span></label>
+<select name='button{{INDEX}}_mode'>
+<option value='momentary'{{MODE_MOMENTARY}}>Momentâneo</option>
+<option value='latch'{{MODE_LATCH}}>Latch (alternar)</option>
+</select>
+</div>
+<div>
+<label>Canal MIDI<span class='field-help'>Valores de 1 a 16</span></label>
+<input type='number' min='1' max='16' name='pedal{{INDEX}}_midi_channel' value='{{MIDI_CHANNEL}}'>
+</div>
+<div>
+<label>CC MIDI<span class='field-help'>Control Change, de 0 a 127</span></label>
+<input type='number' min='0' max='127' name='pedal{{INDEX}}_midi_cc' value='{{MIDI_CC}}'>
+</div>
+</div>
+</div>
+<div class='field-group'><h3>Calibração</h3>
+<div class='check'>
+<input type='checkbox' name='pedal{{INDEX}}_auto_range'{{AUTO_RANGE}}>
+<label>Auto-range adaptativo<span class='field-help'>Ajusta os limites ao detectar novos extremos. Para fixá-los, desative e informe mínimo e máximo válidos.</span></label>
+</div>
+<div class='grid'>
+<div>
+<label>Calibração mín.</label>
+<input type='number' step='0.1' min='0' max='32767' name='pedal{{INDEX}}_cal_min' value='{{CAL_MIN}}'>
+</div>
+<div>
+<label>Calibração máx.</label>
+<input type='number' step='0.1' min='0' max='32767' name='pedal{{INDEX}}_cal_max' value='{{CAL_MAX}}'>
+</div>
+</div>
+</div>
+</div>
+</fieldset>
+</template>
+<template id='button-card'>
+<fieldset class='device'>
+<div class='device-header'><strong>Botão {{NUMBER}}</strong>
+<label class='check'><input type='checkbox' name='button{{INDEX}}_enabled'{{ENABLED}}> Ativado</label>
+</div>
+<div class='device-body'>
+<div class='field-group'><h3>Entrada digital</h3>
+<div class='grid'>
+<div>
+<label>GPIO<span class='field-help'>Use os pinos do esquema: 13, 12, 14, 27, 26, 25, 33 ou 32. GPIO15 é reservado ao modo de configuração.</span></label>
+<input type='number' min='0' max='39' name='button{{INDEX}}_gpio' value='{{GPIO}}'>
+</div>
+<div>
+<label class='check'><input type='checkbox' name='button{{INDEX}}_inverted'{{INVERTED}}> Lógica invertida</label>
+</div>
+</div>
+</div>
+<div class='field-group'><h3>Mensagem MIDI</h3>
+<div class='grid'>
+<div>
+<label>Canal MIDI<span class='field-help'>Valores de 1 a 16</span></label>
+<input type='number' min='1' max='16' name='button{{INDEX}}_midi_channel' value='{{MIDI_CHANNEL}}'>
+</div>
+<div>
+<label>CC MIDI<span class='field-help'>Control Change, de 0 a 127</span></label>
+<input type='number' min='0' max='127' name='button{{INDEX}}_midi_cc' value='{{MIDI_CC}}'>
+</div>
+</div>
+</div>
+</div>
+</fieldset>
+</template>
+</body>
+</html>

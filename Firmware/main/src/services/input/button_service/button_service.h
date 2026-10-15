@@ -45,4 +45,14 @@ void button_process();
  */
 bool button_was_pressed(uint8_t index);
 
+/**
+ * @brief Returns whether a button changed to the released state.
+ *
+ * @param index Button index.
+ *
+ * @return true if the button was released since the last processing cycle.
+ * @return false otherwise.
+ */
+bool button_was_released(uint8_t index);
+
 #endif // BUTTON_SERVICE_H

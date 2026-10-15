@@ -2,6 +2,8 @@
 
 Modular BLE MIDI firmware for ESP32-based expression pedals. The project is being organized around drivers, models, services, an application layer and a future FSM so the code stays maintainable as features grow.
 
+Firmware version: **1.2.0**
+
 Current state
 - The sketch entry point in `Firmware/main/main.ino` is now a thin wrapper that calls `app_init()` and `app_run()`.
 - Application orchestration lives in `Firmware/app/app.cpp`.
@@ -20,7 +22,8 @@ Key features implemented
 - Arduino IDE compatibility preserved through sketch-local wrapper translation units.
 - WiFi AP configuration portal with save and factory reset actions.
 - Editable MIDI parameters for 2 pedals and 8 buttons.
-- Pedal calibration fields exposed in the configuration UI.
+- Each button supports momentary or latch behavior. Latch is the default: each press toggles its MIDI CC between 127 and 0, and release sends nothing. Momentary mode sends 127 on press and 0 on release.
+- Pedal calibration fields and per-pedal adaptive auto-range settings exposed in the configuration UI.
 
 Hardware
 - BLE-capable microcontroller (ESP32 recommended).
@@ -32,11 +35,18 @@ Example wiring
 - Pedal output -> ADS1115 A1
 - Pedal GND -> GND
 - Pedal VCC -> 3.3V
-- Configuration button: GPIO34 (D34) -> button -> 3.3V, with an external 10 kOhm pull-down resistor from GPIO34 to GND.
+- Configuration button: GPIO15 (D15), with an external pull-down resistor.
+- MIDI buttons 1-8 use GPIO13, GPIO12, GPIO14, GPIO27, GPIO26, GPIO25, GPIO33 and GPIO32, respectively. Button inputs require external pull-down resistors.
 
 Configuration mode
-- Send `c` or `C` through Serial, or press the button connected to D34.
-- The D34 input uses a 40 ms debounce window. GPIO34 is input-only and has no internal pull-up/pull-down, so the external pull-down resistor is required.
+- Press the configuration button connected to D15, or send `c`/`C` through Serial.
+- The configuration button uses a 40 ms debounce window. BLE MIDI is stopped while the Wi-Fi configuration portal is active and restarted if the portal is exited with `x`/`X`. Saving or restoring factory defaults restarts the device.
+- Each enabled MIDI button uses a 40 ms digital debounce window. Its momentary/latch behavior, MIDI channel and CC are configurable in the portal.
+- If the configuration AP fails to start, the OLED displays an error for five seconds before the device restarts.
+
+Pedal calibration
+- Each pedal has configurable minimum/maximum calibration values and an independent auto-range option.
+- With auto-range enabled, calibration limits adapt to new pedal extremes. With it disabled, the configured limits remain fixed; minimum must be lower than maximum.
 
 Important code/configuration (see main/main.ino)
 - Entry point: `Firmware/main/main.ino`
@@ -58,7 +68,6 @@ Usage
 
 Notes & future improvements
 - The FSM should keep taking ownership of state transitions and runtime decisions.
-- The configuration portal currently uses serial `c`/`C` as a temporary entry trigger from connected/runtime states; a dedicated input path should replace that later.
 - Consider moving BLE, display and event coordination further out of `app.cpp` once the FSM grows.
 - Calibration constants and MIDI routing are now configurable, but validation and richer UX can still improve.
 

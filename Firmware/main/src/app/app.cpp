@@ -23,9 +23,11 @@
 
 #include "../drivers/adc/ads1115.h"
 #include "../drivers/ble/ble_driver.h"
+#include "../board_pins.h"
 
 #include "../services/config_service/config_service.h"
 #include "../services/display_service/display_service.h"
+#include "../services/input/button_service/button_service.h"
 #include "../services/input/pedal_service/pedal_service.h"
 #include "../services/midi_service/midi_service.h"
 
@@ -39,14 +41,13 @@ namespace
 /**
  * @brief GPIO used by the dedicated configuration button.
  */
-constexpr uint8_t kConfigButtonPin = 34U;
-
 constexpr unsigned long kConfigButtonDebounceMs = 40UL;
 
 /**
  * @brief Number of pedals supported by the hardware.
  */
 constexpr uint8_t kPedalCount = 2U;
+constexpr uint8_t kButtonCount = BoardPins::kMidiButtonCount;
 
 /**
  * @brief Pedal sampling interval in milliseconds.
@@ -100,6 +101,7 @@ const SystemConfig *systemConfig = nullptr;
  * filtered_value, midi_value, and last_midi_value.
  */
 PedalModel *pedals = nullptr;
+ButtonModel *buttons = nullptr;
 
 /**
  * @brief Timestamp of the previous pedal processing cycle.
@@ -167,6 +169,11 @@ void handleStateChange(FsmState currentState);
  */
 void processPedals();
 
+/**
+ * @brief Processes debounced configured buttons and sends their MIDI CCs.
+ */
+void processButtons();
+
 //=============================================================================
 // Private Functions
 //=============================================================================
@@ -206,6 +213,8 @@ void processPedals();
             currentState != FsmState::Config)
         {
             config_mode_exit();
+            midi_init();
+            lastBleConnectedState = false;
         }
 
         switch (currentState)
@@ -250,7 +259,8 @@ void processPedals();
                 break;
 
             case FsmState::Config:
-                fsm_post(fsmContext, FsmEvent::StopStream);
+                midi_deinit();
+                lastBleConnectedState = false;
                 delay(1000);
                 config_mode_enter(stateActions);
 
@@ -337,6 +347,56 @@ void processPedals();
         }
     }
 
+    void processButtons()
+    {
+        if (buttons == nullptr)
+        {
+            return;
+        }
+
+        button_process();
+
+        for (uint8_t index = 0U;
+             index < kButtonCount;
+             ++index)
+        {
+            ButtonModel &button = buttons[index];
+
+            if (button_was_pressed(index))
+            {
+                const uint8_t midiValue = button.latch
+                    ? (button.latched ? 0U : 127U)
+                    : 127U;
+
+                if (button.latch)
+                {
+                    button.latched = !button.latched;
+                }
+
+                sendControlChange(
+                    button.midi_channel,
+                    button.midi_cc,
+                    midiValue);
+                Serial.printf(
+                    "Button %u pressed - MIDI CC%d: %u\n",
+                    index + 1U,
+                    button.midi_cc,
+                    midiValue);
+            }
+            else if (!button.latch && button_was_released(index))
+            {
+                sendControlChange(
+                    button.midi_channel,
+                    button.midi_cc,
+                    0U);
+                Serial.printf(
+                    "Button %u released - MIDI CC%d: 0\n",
+                    index + 1U,
+                    button.midi_cc);
+            }
+        }
+    }
+
     void processSerialCommands()
     {
         const FsmState currentState =
@@ -378,7 +438,7 @@ void processPedals();
     void processConfigButton()
     {
         const bool rawButtonState =
-            digitalRead(kConfigButtonPin) == HIGH;
+            digitalRead(BoardPins::kConfigButton) == HIGH;
 
         if (rawButtonState != configButtonRawState)
         {
@@ -456,7 +516,7 @@ void app_init()
     /*
      * Initialize the configuration button.
      */
-    pinMode(kConfigButtonPin, INPUT);
+    pinMode(BoardPins::kConfigButton, INPUT);
 
     /*
      * Initialize the ADC driver.
@@ -505,6 +565,7 @@ void app_init()
      * therefore a mutable pointer is required here.
      */
     pedals = config_service_get_mutable().pedals;
+    buttons = config_service_get_mutable().buttons;
 
     if (pedals == nullptr)
     {
@@ -520,6 +581,10 @@ void app_init()
         pedals,
         kPedalCount);
 
+    button_init(
+        buttons,
+        kButtonCount);
+
     /*
      * Configure the callbacks used by the FSM states.
      */
@@ -528,6 +593,7 @@ void app_init()
     stateActions.log_message = logMessage;
     stateActions.send_control_change = sendControlChange;
     stateActions.display_show_config = display_show_config;
+    stateActions.display_show_error = display_show_error;
 
     /*
      * Initialize the finite state machine.
@@ -591,6 +657,7 @@ void app_run()
     if (currentState == FsmState::ReadAndSend)
     {
         processPedals();
+        processButtons();
     }
 
 }

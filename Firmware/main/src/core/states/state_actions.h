@@ -9,6 +9,7 @@ struct StateActions {
     void (*log_message)(const char *message);
     void (*send_control_change)(uint8_t channel, uint8_t cc, uint8_t value);
     void (*display_show_config)(const char *message);
+    void (*display_show_error)(const char *message);
 };
 
 #endif // STATE_ACTIONS_H

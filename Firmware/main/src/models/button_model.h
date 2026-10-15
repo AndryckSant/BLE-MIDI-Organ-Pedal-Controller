@@ -25,8 +25,10 @@ struct ButtonModel {
     bool inverted;       // Whether the button logic is inverted (active low)
     uint8_t midi_channel;     // MIDI channel for the button
     uint8_t midi_cc;          // MIDI Control Change number for the button
+    bool latch;                // Toggle the MIDI value on each press instead of following press state
 
     // Runtime state
+    bool latched;              // Current output state when latch mode is enabled
     bool pressed;          // Current state of the button (pressed or not)
     bool last_pressed;         // Last state of the button (pressed or not)
 };

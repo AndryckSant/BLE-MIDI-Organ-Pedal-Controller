@@ -124,7 +124,7 @@ void display_show_boot()
 
     showLines("BLE MIDI",
               "Controller",
-              "V1.1.1");
+              "V1.2.0");
 }
 
 void display_show_ble_status(bool connected)

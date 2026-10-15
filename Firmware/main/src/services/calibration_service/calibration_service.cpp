@@ -117,6 +117,10 @@ void calibration_update(CalibrationData *calibration,
         return;
     }
 
+    if(!calibration->auto_range){
+        return;
+    }
+
     /*
      * The first sample establishes the initial calibration range.
      */
