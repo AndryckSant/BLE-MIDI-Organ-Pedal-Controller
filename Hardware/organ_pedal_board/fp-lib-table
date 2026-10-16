@@ -1,0 +1,4 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "organ_pedal_board")(type "KiCad")(uri "${KIPRJMOD}/organ_pedal_board.pretty")(options "")(descr ""))
+)
